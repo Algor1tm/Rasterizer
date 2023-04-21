@@ -21,6 +21,7 @@ namespace Raster
 		void BeginRenderPass(RenderTarget* target);
 		void EndRenderPass();
 
+		void DrawLines(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices);
 		void DrawTriangles(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices);
 
 	private:
