@@ -16,10 +16,11 @@ namespace Raster
 		RasterizerState state;
 		m_Rasterizer = Rasterizer::Create(state);
 
-		float vertices[] = { 0.f,  0.f, 0,   1, 1, 1,	0, 
-							 0.5f,  0.f, 0,   1, 1, 1,	0, 
-							 0.f,  1.f, 0,   1, 1, 1,   0, };
-		
+		float vertices[] = { 0.2f,  0.3f, 0,   1, 1, 1,	0,
+							 0.5f,  0.4f, 0,   1, 1, 1,	0,
+							 0.3f,  0.2f, 0,   1, 1, 1, 0,
+		};
+	
 
 		m_VertexBuffer = VertexBuffer::Create((Vertex*)vertices, std::size(vertices) / 6);
 

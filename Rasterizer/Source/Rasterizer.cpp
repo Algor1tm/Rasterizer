@@ -21,6 +21,32 @@ namespace Raster
 
 	}
 
+	void Rasterizer::DrawLines(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices)
+	{
+		if (marget == nullptr)
+			return;
+
+		const std::vector<uint32>& indicesData = indices->Data();
+		const std::vector<Vertex>& verticesData = vertices->Data();
+
+		for (uint32 i = 0; i < indicesData.size(); i += 3)
+		{
+			const Vector3& p0f = verticesData[i].Position;
+			const Vector3& p1f = verticesData[i + 1].Position;
+			const Vector3& p2f = verticesData[i + 2].Position;
+
+			Vector3 pArray[] = { p0f, p1f, p2f };
+
+			Vector2i p0 = { pArray[0].x * marget->GetWidth(), pArray[0].y * marget->GetHeight() };
+			Vector2i p1 = { pArray[1].x * marget->GetWidth(), pArray[1].y * marget->GetHeight() };
+			Vector2i p2 = { pArray[2].x * marget->GetWidth(), pArray[2].y * marget->GetHeight() };
+
+			FillBottomFlatTriangle(p0, p1, p2);
+
+		}
+
+	}
+
 	void Rasterizer::DrawTriangles(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices)
 	{
 		if (marget == nullptr)
@@ -91,7 +117,7 @@ namespace Raster
 			curx2 -= invslope2;
 		}
 	}
-		 
+
 	void Rasterizer::FillRow(int32 x0, int32 x1, int32 y)
 	{
 		for (int32 x = Math::Min(x0, x1); x < Math::Max(x0, x1); ++x)
