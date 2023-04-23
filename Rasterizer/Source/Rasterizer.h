@@ -29,6 +29,7 @@ namespace Raster
 		void FillTopFlatTriangle(const Vector2i& p0, const Vector2i& p1, const Vector2i& p2); // p0 = p1
 
 		void FillRow(int32 x0, int32 x1, int32 y);
+		void FillColumn(int32 y0, int32 y1, int32 x);
 
 	private:
 		RasterizerState m_State;
