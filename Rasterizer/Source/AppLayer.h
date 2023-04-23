@@ -35,6 +35,9 @@ namespace Raster
 		Ref<VertexBuffer> m_VertexBuffer;
 		Ref<IndexBuffer> m_IndexBuffer;
 
+		Ref<VertexBuffer> m_LineBuffer;
+		Ref<IndexBuffer> m_LineIndexBuffer;
+
 		Vector2 m_ViewportSize = { 1200, 720 };
 	};
 }

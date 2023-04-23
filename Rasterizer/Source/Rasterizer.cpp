@@ -21,6 +21,44 @@ namespace Raster
 
 	}
 
+	void Rasterizer::DrawLines(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices)
+	{
+		if (marget == nullptr)
+			return;
+
+		const std::vector<uint32>& indicesData = indices->Data();
+		const std::vector<Vertex>& verticesData = vertices->Data();
+
+		for (uint32 i = 0; i < indicesData.size(); i += 2)
+		{
+			const Vector3& p0f = verticesData[i].Position;
+			const Vector3& p1f = verticesData[i + 1].Position;
+
+			Vector3 pArray[] = { p0f, p1f };
+
+			Vector2i p0 = { pArray[0].x * marget->GetWidth(), pArray[0].y * marget->GetHeight() };
+			Vector2i p1 = { pArray[1].x * marget->GetWidth(), pArray[1].y * marget->GetHeight() };
+
+			
+			if (p0.y == p1.y)
+			{
+				FillRow(p0.x, p1.x, p0.y);
+			}
+			else if (p0.x == p1.x)
+			{
+				FillColumn(p0.y, p1.y, p0.x);
+			}
+			else
+			{
+				//float k = (p1.y - p0.y) / (float)(p1.x - p0.x);
+			}
+
+			
+		}
+
+	}
+
+	
 	void Rasterizer::DrawTriangles(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices)
 	{
 		if (marget == nullptr)
@@ -91,10 +129,23 @@ namespace Raster
 			curx2 -= invslope2;
 		}
 	}
-		 
+
 	void Rasterizer::FillRow(int32 x0, int32 x1, int32 y)
 	{
 		for (int32 x = Math::Min(x0, x1); x < Math::Max(x0, x1); ++x)
+		{
+			Pixel& pixel = marget->Get(x, y);
+
+			pixel.Red = 255;
+			pixel.Green = 255;
+			pixel.Blue = 255;
+			pixel.Alpha = 255;
+		}
+	}
+
+	void Rasterizer::FillColumn(int32 y0, int32 y1, int32 x)
+	{
+		for (int32 y = Math::Min(y0, y1); y < Math::Max(y0, y1); ++y)
 		{
 			Pixel& pixel = marget->Get(x, y);
 
