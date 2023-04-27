@@ -30,6 +30,7 @@ namespace Raster
 
 		void FillRow(int32 x0, int32 x1, int32 y);
 		void FillColumn(int32 y0, int32 y1, int32 x);
+		void FillLine(int32 x0, int32 x1, int32 y0, int32 y1);
 
 	private:
 		RasterizerState m_State;

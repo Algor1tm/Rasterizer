@@ -27,8 +27,8 @@ namespace Raster
 		m_IndexBuffer = IndexBuffer::Create(indices, std::size(indices));
 
 		float lines[] = {
-						0.6f,  0.2f, 0,   1, 1, 1, 0,
-						0.6f,  0.4f, 0,   1, 1, 1, 0,
+						0.1f,  0.2f, 0,   1, 1, 1, 0,
+						0.7f,  0.7f, 0,   1, 1, 1, 0,
 						//0.5f,  0.2f, 0,   1, 1, 1, 0,
 						//0.7f,  0.2f, 0,   1, 1, 1, 0,
 		};

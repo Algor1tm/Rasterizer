@@ -38,8 +38,8 @@ namespace Raster
 
 			Vector2i p0 = { pArray[0].x * marget->GetWidth(), pArray[0].y * marget->GetHeight() };
 			Vector2i p1 = { pArray[1].x * marget->GetWidth(), pArray[1].y * marget->GetHeight() };
-
 			
+			/*
 			if (p0.y == p1.y)
 			{
 				FillRow(p0.x, p1.x, p0.y);
@@ -50,14 +50,52 @@ namespace Raster
 			}
 			else
 			{
-				//float k = (p1.y - p0.y) / (float)(p1.x - p0.x);
-			}
-
-			
+			*/
+				FillLine(p0.x, p1.x, p0.y, p1.y);
+			//}
 		}
-
 	}
 
+	void Rasterizer::FillLine(int32 x0, int32 x1, int32 y0, int32 y1)
+	{
+
+		float kx = (y1 - y0) / (float)(x1 - x0);
+		float ky = 1 / kx;
+
+		float x = x0;
+		float y = y0;
+
+		if (Math::Abs(kx) >= 0 && Math::Abs(kx) <= 1) {
+
+			for (int32 x = Math::Min(x0, x1); x < Math::Max(x0, x1); ++x)
+			{
+				y += kx;
+
+				Pixel& pixel = marget->Get(x, y);
+
+				pixel.Red = 255;
+				pixel.Green = 255;
+				pixel.Blue = 255;
+				pixel.Alpha = 255;
+			}
+		}
+		else {
+
+			for (int32 y = Math::Min(y0, y1); y < Math::Max(y0, y1); ++y)
+			{
+				x += ky;
+
+				Pixel& pixel = marget->Get(x, y);
+
+				pixel.Red = 255;
+				pixel.Green = 255;
+				pixel.Blue = 255;
+				pixel.Alpha = 255;
+			}
+		}
+		x = 1;
+
+	}
 	
 	void Rasterizer::DrawTriangles(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices)
 	{
@@ -155,4 +193,5 @@ namespace Raster
 			pixel.Alpha = 255;
 		}
 	}
+
 }
