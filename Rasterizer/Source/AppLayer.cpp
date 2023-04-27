@@ -20,12 +20,23 @@ namespace Raster
 							 0.5f,  0.4f, 0,   1, 1, 1,	0,
 							 0.3f,  0.2f, 0,   1, 1, 1, 0,
 		};
-	
 
 		m_VertexBuffer = VertexBuffer::Create((Vertex*)vertices, std::size(vertices) / 6);
 
 		uint32 indices[] = { 0, 1, 2 };
 		m_IndexBuffer = IndexBuffer::Create(indices, std::size(indices));
+
+		float lines[] = {
+						0.1f,  0.2f, 0,   1, 1, 1, 0,
+						0.7f,  0.7f, 0,   1, 1, 1, 0,
+						//0.5f,  0.2f, 0,   1, 1, 1, 0,
+						//0.7f,  0.2f, 0,   1, 1, 1, 0,
+		};
+
+		m_LineBuffer = VertexBuffer::Create((Vertex*)lines, std::size(lines) / 6);
+
+		uint32 line_indices[] = { 0, 1 };
+		m_LineIndexBuffer = IndexBuffer::Create(line_indices, std::size(line_indices));
 	}
 
 	void AppLayer::OnAttach()
@@ -67,6 +78,8 @@ namespace Raster
 
 		// Triangle
 		m_Rasterizer->DrawTriangles(m_VertexBuffer, m_IndexBuffer);
+		// Lines
+		m_Rasterizer->DrawLines(m_LineBuffer, m_LineIndexBuffer);
 
 		m_Rasterizer->EndRenderPass();
 
