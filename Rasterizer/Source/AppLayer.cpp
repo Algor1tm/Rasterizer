@@ -1,5 +1,7 @@
 #include "AppLayer.h"
 
+#include "Shader.h"
+
 #include <Core/Application.h>
 #include <ImGui/imgui.h>
 
@@ -7,6 +9,25 @@
 
 namespace Raster
 {
+	class MyShader
+	{
+	public:
+		static Interpolators VertexShader(const VertexShaderInput& input, Vector4& outPosition)
+		{
+			Interpolators output;
+			output.Color = input.Color;
+
+			outPosition = input.Position;
+
+			return output;
+		}
+
+		static Vector4 FragmentShader(const Interpolators& input)
+		{
+			return input.Color;
+		}
+	};
+
 	AppLayer::AppLayer()
 		: Layer("RasterizerLayer")
 	{
@@ -16,9 +37,9 @@ namespace Raster
 		RasterizerState state;
 		m_Rasterizer = Rasterizer::Create(state);
 
-		float vertices[] = { 0.f,  0.f, 0,   1, 1, 1,	0, 
-							 0.5f,  0.f, 0,   1, 1, 1,	0, 
-							 0.f,  1.f, 0,   1, 1, 1,   0, };
+		float vertices[] = { 0.f,  0.f, 0,   1, 1, 1, 1, 
+							 0.5f, 0.f, 0,   1, 1, 1, 1, 
+							 0.f,  1.f, 0,   1, 1, 1, 1, };
 		
 
 		m_VertexBuffer = VertexBuffer::Create((Vertex*)vertices, std::size(vertices) / 6);
@@ -49,7 +70,13 @@ namespace Raster
 
 		static uint32 posx = 100;
 		static uint32 posy = 100;
-		m_Rasterizer->BeginRenderPass(m_RenderTarget.get());
+
+		RenderPass geometryPass;
+		geometryPass.OutputRenderTarget = m_RenderTarget;
+		geometryPass.VertexShader = &MyShader::VertexShader;
+		geometryPass.FragmentShader = &MyShader::FragmentShader;
+
+		m_Rasterizer->BeginRenderPass(geometryPass);
 		m_RenderTarget->Clear({ 0.8f, 0.3f, 0.2f, 1.f });
 
 		// Rect

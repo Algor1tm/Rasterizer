@@ -11,54 +11,188 @@ namespace Raster
 		return rasterizer;
 	}
 
-	void Rasterizer::BeginRenderPass(RenderTarget* target)
+	void Rasterizer::BeginRenderPass(const RenderPass& renderPass)
 	{
-		marget = target;
+		m_RenderPass = renderPass;
 	}
 
 	void Rasterizer::EndRenderPass()
 	{
-
+		m_RenderPass = RenderPass();
+		m_DrawCallInfo = DrawCallInfo();
 	}
 
 	void Rasterizer::DrawTriangles(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices)
 	{
-		if (marget == nullptr)
+		if (m_RenderPass.OutputRenderTarget == nullptr)
+			return;
+		
+		if (vertices == nullptr || indices == nullptr)
 			return;
 
-		const std::vector<uint32>& indicesData = indices->Data();
-		const std::vector<Vertex>& verticesData = vertices->Data();
+		m_DrawCallInfo.InputVertexBuffer = vertices->Data();
+		m_DrawCallInfo.InputIndexBuffer = indices->Data();
 
-		for (uint32 i = 0; i < indicesData.size(); i += 3)
+		ExecuteGraphicsPipeline();
+	}
+
+	void Rasterizer::ExecuteGraphicsPipeline()
+	{
+		while(NextPrimitive())
 		{
-			const Vector3& p0f = verticesData[i].Position;
-			const Vector3& p1f = verticesData[i + 1].Position;
-			const Vector3& p2f = verticesData[i + 2].Position;
+			VertexShading();
+			Clipping();
 
-			Vector3 pArray[] = { p0f, p1f, p2f };
-			std::sort(std::begin(pArray), std::end(pArray), [](const auto& left, const auto& right) {return left.y < right.y; });
+			PrepareRasterization();
 
-			Vector2i p0 = { pArray[0].x * marget->GetWidth(), pArray[0].y * marget->GetHeight() };
-			Vector2i p1 = { pArray[1].x * marget->GetWidth(), pArray[1].y * marget->GetHeight() };
-			Vector2i p2 = { pArray[2].x * marget->GetWidth(), pArray[2].y * marget->GetHeight() };
-
-			if (p1.y == p2.y)
+			while (!m_DrawCallInfo.FinishPrimitiveRasterization)
 			{
-				FillBottomFlatTriangle(p0, p1, p2);
+				Rasterization();
+				//DepthTest();
+				FragmentShading();
+				//Blending();
+				RecordPixel();
 			}
-			else if (p0.y == p1.y)
+		}
+
+		CleanUp();
+	}
+
+	bool Rasterizer::NextPrimitive()
+	{
+		uint32 vertexCount = 0;
+		if (m_DrawCallInfo.InputPrimitives == Primitives::TRIANGLE_LIST)
+			vertexCount = 3;
+
+		if (m_DrawCallInfo.NextPrimitiveIndex + vertexCount <= m_DrawCallInfo.InputIndexBuffer.size())
+		{
+			m_DrawCallInfo.Vertexes.resize(vertexCount);
+
+			for (uint32 i = 0; i < vertexCount; ++i)
 			{
-				FillTopFlatTriangle(p0, p1, p2);
-			}
-			else
-			{
-				Vector2i p3 = { (p0.x + ((float)(p1.y - p0.y) / (float)(p2.y - p0.y)) * (p2.x - p0.x)), p1.y };
-				FillBottomFlatTriangle(p0, p1, p3);
-				FillTopFlatTriangle(p1, p3, p2);
+				uint32 vertexIndex = m_DrawCallInfo.InputIndexBuffer[m_DrawCallInfo.NextPrimitiveIndex + i];
+				m_DrawCallInfo.Vertexes[i] = m_DrawCallInfo.InputVertexBuffer[vertexIndex];
 			}
 
+			m_DrawCallInfo.NextPrimitiveIndex += vertexCount;
+			return true;
+		}
+
+		return false;
+	}
+
+	void Rasterizer::VertexShading()
+	{
+		m_DrawCallInfo.VertexInterpolators.resize(m_DrawCallInfo.Vertexes.size());
+		m_DrawCallInfo.ClipSpacePositions.resize(m_DrawCallInfo.Vertexes.size());
+		std::vector<Vector4> homogeneousPositions(m_DrawCallInfo.Vertexes.size());
+
+		VertexShaderInput input;
+
+		for (uint32 i = 0; i < m_DrawCallInfo.Vertexes.size(); ++i)
+		{
+			const Vertex& vertex = m_DrawCallInfo.Vertexes[i];
+			input.Position = vertex.Position;
+			input.Color = vertex.Color;
+
+			m_DrawCallInfo.VertexInterpolators[i] = m_RenderPass.VertexShader(input, homogeneousPositions[i]);
+
+			m_DrawCallInfo.ClipSpacePositions[i] = Vector2(homogeneousPositions[i] / homogeneousPositions[i].w);
 		}
 	}
+
+	void Rasterizer::Clipping()
+	{
+		// TODO: Clipping, Viewport, Scissors
+
+		m_DrawCallInfo.ScreenSpacePositions.resize(m_DrawCallInfo.ClipSpacePositions.size());
+
+		for (uint32 i = 0; i < m_DrawCallInfo.ClipSpacePositions.size(); ++i)
+		{
+			Vector2 viewSpace = (m_DrawCallInfo.ClipSpacePositions[i] + 1.f) / 2.f;
+			m_DrawCallInfo.ScreenSpacePositions[i].x = viewSpace.x * m_RenderPass.OutputRenderTarget->GetWidth();
+			m_DrawCallInfo.ScreenSpacePositions[i].y = viewSpace.y * m_RenderPass.OutputRenderTarget->GetHeight();
+		}
+
+		if (m_DrawCallInfo.ScreenSpacePositions.size() == 0)
+			m_DrawCallInfo.FinishPrimitiveRasterization = true;
+	}
+
+	void Rasterizer::PrepareRasterization()
+	{
+		if (m_DrawCallInfo.FinishPrimitiveRasterization)
+			return;
+
+		std::sort(m_DrawCallInfo.ScreenSpacePositions.begin(), m_DrawCallInfo.ScreenSpacePositions.end(),
+			[](const auto& left, const auto& right) {return left.y < right.y; });
+	}
+
+	void Rasterizer::Rasterization()
+	{
+		switch (m_DrawCallInfo.InputPrimitives)
+		{
+		case Primitives::TRIANGLE_LIST:
+		{
+			RasterizeTriangle();
+			break;
+		}
+		}
+	}
+
+	void Rasterizer::FragmentShading()
+	{
+		Vector4 color = m_RenderPass.FragmentShader(m_DrawCallInfo.PixelInterpolators);
+		m_DrawCallInfo.ResultColor = color;
+	}
+
+	void Rasterizer::RecordPixel()
+	{
+		Vector4 color = m_DrawCallInfo.ResultColor;
+		auto [x, y] = m_DrawCallInfo.PixelCoords;
+
+		Pixel& pixel = m_RenderPass.OutputRenderTarget->Get(x, y);
+		pixel.Red = color.x;
+		pixel.Green = color.y;
+		pixel.Blue = color.z;
+		pixel.Alpha = color.w;
+	}
+
+	void Rasterizer::CleanUp()
+	{
+		m_DrawCallInfo.Vertexes.clear();
+		m_DrawCallInfo.ClipSpacePositions.clear();
+		m_DrawCallInfo.ScreenSpacePositions.clear();
+		m_DrawCallInfo.VertexInterpolators.clear();
+	}
+
+	void Rasterizer::RasterizeTriangle()
+	{
+		const Vector2i& p0 = m_DrawCallInfo.ScreenSpacePositions[0];
+		const Vector2i& p1 = m_DrawCallInfo.ScreenSpacePositions[1];
+		const Vector2i& p2 = m_DrawCallInfo.ScreenSpacePositions[2];
+
+		if (p1.y == p2.y)
+		{
+			FillBottomFlatTriangle(p0, p1, p2);
+		}
+		else if (p0.y == p1.y)
+		{
+			FillTopFlatTriangle(p0, p1, p2);
+		}
+		else
+		{
+			Vector2i p3 = { (p0.x + ((float)(p1.y - p0.y) / (float)(p2.y - p0.y)) * (p2.x - p0.x)), p1.y };
+			FillBottomFlatTriangle(p0, p1, p3);
+			FillTopFlatTriangle(p1, p3, p2);
+		}
+	}
+
+	void Rasterizer::TrilinearInterpolation()
+	{
+
+	}
+
+	// TODO: rework 3 functions below
 
 	void Rasterizer::FillBottomFlatTriangle(const Vector2i& p0, const Vector2i& p1, const Vector2i& p2)
 	{
@@ -91,17 +225,12 @@ namespace Raster
 			curx2 -= invslope2;
 		}
 	}
-		 
+	
 	void Rasterizer::FillRow(int32 x0, int32 x1, int32 y)
 	{
 		for (int32 x = Math::Min(x0, x1); x < Math::Max(x0, x1); ++x)
 		{
-			Pixel& pixel = marget->Get(x, y);
-
-			pixel.Red = 255;
-			pixel.Green = 255;
-			pixel.Blue = 255;
-			pixel.Alpha = 255;
+			m_DrawCallInfo.PixelCoords = { x, y };
 		}
 	}
 }

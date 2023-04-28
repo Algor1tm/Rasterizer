@@ -6,6 +6,11 @@
 
 namespace Raster
 {
+	enum class Primitives
+	{
+		TRIANGLE_LIST, LINE_LIST
+	};
+
 	struct Vertex
 	{
 		Vector3 Position;
