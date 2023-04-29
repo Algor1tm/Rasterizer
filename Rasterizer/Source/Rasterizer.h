@@ -49,7 +49,10 @@ namespace Raster
 
 	private:
 		void RasterizeTriangle();
+		void RasterizeLine();
+
 		void TrilinearInterpolation();
+		void LinearInterpolation();
 
 		void FillBottomFlatTriangle(const Vector2i& p0, const Vector2i& p1, const Vector2i& p2); // p1 = p2
 		void FillTopFlatTriangle(const Vector2i& p0, const Vector2i& p1, const Vector2i& p2); // p0 = p1

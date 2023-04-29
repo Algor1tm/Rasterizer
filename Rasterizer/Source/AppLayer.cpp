@@ -38,18 +38,31 @@ namespace Raster
 		m_Rasterizer = Rasterizer::Create(state);
 
 		float vertices[] = { 0.f,  -0.5f, 0,   1, 0, 0, 1, 
-							-0.6f, 0.4f, 0,   0, 1, 0, 1, 
+							-0.6f, 0.4f, 0,    0, 1, 0, 1, 
 							 0.6f,  0.4f, 0,   0, 0, 1, 1, };
 		
 		uint32 indices[] = { 0, 1, 2 };
 
 		VertexBufferCreateInfo triangleInfo;
 		triangleInfo.Data = (Vertex*)vertices;
-		triangleInfo.Size = std::size(vertices) / 6;
+		triangleInfo.Size = std::size(vertices) / 7;
 		triangleInfo.Primitives = PrimitiveType::TRIANGLE_LIST;
 		triangleInfo.IndexBuffer = IndexBuffer::Create(indices, std::size(indices));
 
 		m_VertexBuffer = VertexBuffer::Create(triangleInfo);
+
+		float lineVertices[] = { -0.5f, -0.5f, 0,   1, 0, 0, 1,
+								  0.5f,  0.5f, 0,   0, 0, 1, 1 };
+
+		uint32 lineIndices[] = { 0, 1 };
+
+		VertexBufferCreateInfo lineInfo;
+		lineInfo.Data = (Vertex*)lineVertices;
+		lineInfo.Size = std::size(lineVertices) / 7;
+		lineInfo.Primitives = PrimitiveType::LINE_LIST;
+		lineInfo.IndexBuffer = IndexBuffer::Create(lineIndices, std::size(lineIndices));
+
+		m_LineVertexBuffer = VertexBuffer::Create(lineInfo);
 	}
 
 	void AppLayer::OnAttach()
@@ -95,8 +108,8 @@ namespace Raster
 		posx = (posx + 2) % (uint32)(m_RenderTarget->GetWidth() - 101);
 		posy = (posy + 1) % (uint32)(m_RenderTarget->GetHeight() - 101);
 
-		// Triangle
 		m_Rasterizer->DrawElements(m_VertexBuffer);
+		m_Rasterizer->DrawElements(m_LineVertexBuffer);
 
 		m_Rasterizer->EndRenderPass();
 
@@ -154,9 +167,20 @@ namespace Raster
 
 		std::vector<Vertex>& vertices = m_VertexBuffer->GetData();
 
+		ImGui::Text("TRIANGLE");
 		DrawVertexEditor("Point0", vertices[0]);
 		DrawVertexEditor("Point1", vertices[1]);
 		DrawVertexEditor("Point2", vertices[2]);
+
+		std::vector<Vertex>& lineVertices = m_LineVertexBuffer->GetData();
+
+		ImGui::Spacing();
+		ImGui::Spacing();
+		ImGui::Spacing();
+
+		ImGui::Text("LINE");
+		DrawVertexEditor("LinePoint0", lineVertices[0]);
+		DrawVertexEditor("LinePoint1", lineVertices[1]);
 
 		ImGui::End();
 	}

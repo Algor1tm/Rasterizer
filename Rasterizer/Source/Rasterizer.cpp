@@ -59,6 +59,9 @@ namespace Raster
 		if (m_DrawCallInfo.InputPrimitives == PrimitiveType::TRIANGLE_LIST)
 			vertexCount = 3;
 
+		if (m_DrawCallInfo.InputPrimitives == PrimitiveType::LINE_LIST)
+			vertexCount = 2;
+
 		if (m_DrawCallInfo.NextPrimitiveIndex + vertexCount <= m_DrawCallInfo.InputIndexBuffer.size())
 		{
 			m_DrawCallInfo.Vertexes.resize(vertexCount);
@@ -124,6 +127,11 @@ namespace Raster
 			RasterizeTriangle();
 			break;
 		}
+		case PrimitiveType::LINE_LIST:
+		{
+			RasterizeLine();
+			break;
+		}
 		}
 	}
 	
@@ -144,6 +152,11 @@ namespace Raster
 		case PrimitiveType::TRIANGLE_LIST:
 		{
 			TrilinearInterpolation();
+			break;
+		}
+		case PrimitiveType::LINE_LIST:
+		{
+			LinearInterpolation();
 			break;
 		}
 		}
@@ -167,6 +180,7 @@ namespace Raster
 		m_DrawCallInfo.ClipSpacePositions.clear();
 		m_DrawCallInfo.ScreenSpacePositions.clear();
 		m_DrawCallInfo.VertexInterpolators.clear();
+		m_DrawCallInfo.NextPrimitiveIndex = 0;
 	}
 
 	void Rasterizer::TrilinearInterpolation()
@@ -193,14 +207,28 @@ namespace Raster
 		m_DrawCallInfo.PixelInterpolators.Color = w0 * vertInterp[0].Color + w1 * vertInterp[1].Color + w2 * vertInterp[2].Color;
 	}
 
-	void Rasterizer::RasterizeTriangle()
+	void Rasterizer::LinearInterpolation()
 	{
-		std::sort(m_DrawCallInfo.ScreenSpacePositions.begin(), m_DrawCallInfo.ScreenSpacePositions.end(),
-			[](const auto& left, const auto& right) {return left.y < right.y; });
-
 		const Vector2i& p0 = m_DrawCallInfo.ScreenSpacePositions[0];
 		const Vector2i& p1 = m_DrawCallInfo.ScreenSpacePositions[1];
-		const Vector2i& p2 = m_DrawCallInfo.ScreenSpacePositions[2];
+
+		const Vector2i& x = m_DrawCallInfo.PixelCoords;
+
+		float percent = (x - p0).Length() / (p1 - p0).Length();
+
+		const auto& vertInterp = m_DrawCallInfo.VertexInterpolators;
+
+		m_DrawCallInfo.PixelInterpolators.Color = vertInterp[0].Color + vertInterp[1].Color * percent;
+	}
+
+	void Rasterizer::RasterizeTriangle()
+	{
+		Vector2i pArray[] = { m_DrawCallInfo.ScreenSpacePositions[0], m_DrawCallInfo.ScreenSpacePositions[1], m_DrawCallInfo.ScreenSpacePositions[2] };
+		std::sort(std::begin(pArray), std::end(pArray), [](const auto& left, const auto& right) {return left.y < right.y; });
+
+		const Vector2i& p0 = pArray[0];
+		const Vector2i& p1 = pArray[1];
+		const Vector2i& p2 = pArray[2];
 
 		if (p1.y == p2.y)
 		{
@@ -215,6 +243,39 @@ namespace Raster
 			Vector2i p3 = { (p0.x + ((float)(p1.y - p0.y) / (float)(p2.y - p0.y)) * (p2.x - p0.x)), p1.y };
 			FillBottomFlatTriangle(p0, p1, p3);
 			FillTopFlatTriangle(p1, p3, p2);
+		}
+	}
+
+	void Rasterizer::RasterizeLine()
+	{
+		const Vector2i& p0 = m_DrawCallInfo.ScreenSpacePositions[0];
+		const Vector2i& p1 = m_DrawCallInfo.ScreenSpacePositions[1];
+
+		float kx = (p1.y - p1.y) / (float)(p1.x - p0.x);
+		float ky = 1 / kx;
+
+		float x = p0.x;
+		float y = p0.y;
+
+		if (Math::Abs(kx) >= 0 && Math::Abs(kx) <= 1) 
+		{
+			for (int32 x = Math::Min(p0.x, p1.x); x < Math::Max(p0.x, p1.x); ++x)
+			{
+				y += kx;
+
+				m_DrawCallInfo.PixelCoords = { x, y };
+				ProcessPixel();
+			}
+		}
+		else 
+		{
+			for (int32 y = Math::Min(p0.y, p1.y); y < Math::Max(p0.y, p1.y); ++y)
+			{
+				x += ky;
+
+				m_DrawCallInfo.PixelCoords = { x, y };
+				ProcessPixel();
+			}
 		}
 	}
 
@@ -255,7 +316,6 @@ namespace Raster
 		for (int32 x = Math::Min(x0, x1); x < Math::Max(x0, x1); ++x)
 		{
 			m_DrawCallInfo.PixelCoords = { x, y };
-
 			ProcessPixel();
 		}
 	}

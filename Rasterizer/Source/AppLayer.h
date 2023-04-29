@@ -34,6 +34,7 @@ namespace Raster
 		Ref<SwapChain> m_SwapChain;
 
 		Ref<VertexBuffer> m_VertexBuffer;
+		Ref<VertexBuffer> m_LineVertexBuffer;
 
 		Vector2 m_ViewportSize = { 1200, 720 };
 	};
