@@ -37,10 +37,14 @@ namespace Raster
 		bool NextPrimitive();
 		void VertexShading();
 		void Clipping();
-		void PrepareRasterization();
-		void Rasterization();
+
+		void Rasterize();
+
+		void ProcessPixel();
+
 		void FragmentShading();
 		void RecordPixel();
+
 		void CleanUp();
 
 	private:
@@ -69,8 +73,7 @@ namespace Raster
 
 			Vector2i PixelCoords;
 			Interpolators PixelInterpolators;
-			Vector4 ResultColor;
-			bool FinishPrimitiveRasterization = false;
+			Vector4 PixelColor;
 		};
 
 	private:

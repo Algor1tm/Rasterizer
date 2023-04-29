@@ -14,6 +14,12 @@ namespace Raster
 
 		}
 
+		Pixel(Vector4 norm)
+			: Red(norm.x * 255), Green(norm.y * 255), Blue(norm.z * 255), Alpha(norm.w * 255)
+		{
+
+		}
+
 		uint8 Red = 0;
 		uint8 Green = 0;
 		uint8 Blue = 0;

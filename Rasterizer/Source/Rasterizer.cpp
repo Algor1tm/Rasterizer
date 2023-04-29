@@ -41,18 +41,10 @@ namespace Raster
 		while(NextPrimitive())
 		{
 			VertexShading();
+			//Culling();
 			Clipping();
 
-			PrepareRasterization();
-
-			while (!m_DrawCallInfo.FinishPrimitiveRasterization)
-			{
-				Rasterization();
-				//DepthTest();
-				FragmentShading();
-				//Blending();
-				RecordPixel();
-			}
+			Rasterize();
 		}
 
 		CleanUp();
@@ -113,22 +105,13 @@ namespace Raster
 			m_DrawCallInfo.ScreenSpacePositions[i].x = viewSpace.x * m_RenderPass.OutputRenderTarget->GetWidth();
 			m_DrawCallInfo.ScreenSpacePositions[i].y = viewSpace.y * m_RenderPass.OutputRenderTarget->GetHeight();
 		}
-
-		if (m_DrawCallInfo.ScreenSpacePositions.size() == 0)
-			m_DrawCallInfo.FinishPrimitiveRasterization = true;
 	}
 
-	void Rasterizer::PrepareRasterization()
+	void Rasterizer::Rasterize()
 	{
-		if (m_DrawCallInfo.FinishPrimitiveRasterization)
+		if (m_DrawCallInfo.ScreenSpacePositions.size() == 0)
 			return;
 
-		std::sort(m_DrawCallInfo.ScreenSpacePositions.begin(), m_DrawCallInfo.ScreenSpacePositions.end(),
-			[](const auto& left, const auto& right) {return left.y < right.y; });
-	}
-
-	void Rasterizer::Rasterization()
-	{
 		switch (m_DrawCallInfo.InputPrimitives)
 		{
 		case Primitives::TRIANGLE_LIST:
@@ -138,23 +121,39 @@ namespace Raster
 		}
 		}
 	}
+	
+	void Rasterizer::ProcessPixel()
+	{
+		//if(!DepthTest())
+		//	return;
+
+		FragmentShading();
+		//Blending();
+		RecordPixel();
+	}
 
 	void Rasterizer::FragmentShading()
 	{
+		switch (m_DrawCallInfo.InputPrimitives)
+		{
+		case Primitives::TRIANGLE_LIST:
+		{
+			TrilinearInterpolation();
+			break;
+		}
+		}
+
 		Vector4 color = m_RenderPass.FragmentShader(m_DrawCallInfo.PixelInterpolators);
-		m_DrawCallInfo.ResultColor = color;
+		color = Math::Clamp(color, 0.f, 1.f);
+		m_DrawCallInfo.PixelColor = color;
 	}
 
 	void Rasterizer::RecordPixel()
 	{
-		Vector4 color = m_DrawCallInfo.ResultColor;
+		Vector4 color = m_DrawCallInfo.PixelColor;
 		auto [x, y] = m_DrawCallInfo.PixelCoords;
 
-		Pixel& pixel = m_RenderPass.OutputRenderTarget->Get(x, y);
-		pixel.Red = color.x;
-		pixel.Green = color.y;
-		pixel.Blue = color.z;
-		pixel.Alpha = color.w;
+		m_RenderPass.OutputRenderTarget->Get(x, y) = Pixel(color);
 	}
 
 	void Rasterizer::CleanUp()
@@ -165,8 +164,35 @@ namespace Raster
 		m_DrawCallInfo.VertexInterpolators.clear();
 	}
 
+	void Rasterizer::TrilinearInterpolation()
+	{
+		auto TriangleArea = [](Vector2i a, Vector2i b) {return 0.5f * Math::Cross(a, b); };
+
+		const Vector2i& p0 = m_DrawCallInfo.ScreenSpacePositions[0];
+		const Vector2i& p1 = m_DrawCallInfo.ScreenSpacePositions[1];
+		const Vector2i& p2 = m_DrawCallInfo.ScreenSpacePositions[2];
+
+		const Vector2i& x = m_DrawCallInfo.PixelCoords;
+
+		float fullArea = TriangleArea(p1 - p0, p2 - p0);
+		float area0 = TriangleArea(p1 - x, p2 - x);
+		float area1 = TriangleArea(p2 - x, p0 - x);
+		float area2 = TriangleArea(p0 - x, p1 - x);
+
+		float w0 = area0 / fullArea;
+		float w1 = area1 / fullArea;
+		float w2 = area2 / fullArea;
+
+		const auto& vertInterp = m_DrawCallInfo.VertexInterpolators;
+
+		m_DrawCallInfo.PixelInterpolators.Color = w0 * vertInterp[0].Color + w1 * vertInterp[1].Color + w2 * vertInterp[2].Color;
+	}
+
 	void Rasterizer::RasterizeTriangle()
 	{
+		std::sort(m_DrawCallInfo.ScreenSpacePositions.begin(), m_DrawCallInfo.ScreenSpacePositions.end(),
+			[](const auto& left, const auto& right) {return left.y < right.y; });
+
 		const Vector2i& p0 = m_DrawCallInfo.ScreenSpacePositions[0];
 		const Vector2i& p1 = m_DrawCallInfo.ScreenSpacePositions[1];
 		const Vector2i& p2 = m_DrawCallInfo.ScreenSpacePositions[2];
@@ -186,13 +212,6 @@ namespace Raster
 			FillTopFlatTriangle(p1, p3, p2);
 		}
 	}
-
-	void Rasterizer::TrilinearInterpolation()
-	{
-
-	}
-
-	// TODO: rework 3 functions below
 
 	void Rasterizer::FillBottomFlatTriangle(const Vector2i& p0, const Vector2i& p1, const Vector2i& p2)
 	{
@@ -231,6 +250,8 @@ namespace Raster
 		for (int32 x = Math::Min(x0, x1); x < Math::Max(x0, x1); ++x)
 		{
 			m_DrawCallInfo.PixelCoords = { x, y };
+
+			ProcessPixel();
 		}
 	}
 }
