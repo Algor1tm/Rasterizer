@@ -29,7 +29,7 @@ namespace Raster
 		void BeginRenderPass(const RenderPass& renderPass);
 		void EndRenderPass();
 
-		void DrawTriangles(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices);
+		void DrawElements(Ref<VertexBuffer> vertices);
 
 	private:
 		void ExecuteGraphicsPipeline();
@@ -61,7 +61,7 @@ namespace Raster
 		{
 			std::vector<Vertex> InputVertexBuffer;
 			std::vector<uint32> InputIndexBuffer;
-			Primitives InputPrimitives = Primitives::TRIANGLE_LIST;
+			PrimitiveType InputPrimitives = PrimitiveType::TRIANGLE_LIST;
 
 			uint32 NextPrimitiveIndex = 0;
 

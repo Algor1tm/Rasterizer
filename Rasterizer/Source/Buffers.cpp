@@ -11,11 +11,18 @@ namespace Raster
 		return indexBuffer;
 	}
 
-	Ref<VertexBuffer> VertexBuffer::Create(Vertex* vertices, uint32 count)
+	Ref<VertexBuffer> VertexBuffer::Create(const VertexBufferCreateInfo& createInfo)
 	{
 		auto vertexBuffer = Core::CreateRef<VertexBuffer>();
-		vertexBuffer->m_Buffer = std::vector<Vertex>(vertices, vertices + count);
-		
+		vertexBuffer->m_Buffer = std::vector<Vertex>(createInfo.Data, createInfo.Data + createInfo.Size);
+		vertexBuffer->m_Primitives = createInfo.Primitives;
+		vertexBuffer->m_IndexBuffer = createInfo.IndexBuffer;
+
 		return vertexBuffer;
+	}
+
+	void VertexBuffer::SetData(const std::vector<Vertex>& data)
+	{
+		m_Buffer = data;
 	}
 }

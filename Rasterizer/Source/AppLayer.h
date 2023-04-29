@@ -25,6 +25,7 @@ namespace Raster
 
 	private:
 		bool OnWindowResize(Core::WindowResizeEvent& event);
+		void DrawVertexEditor(std::string_view label, Vertex& vertex);
 
 	private:
 		Core::Time m_FrameTime;
@@ -33,7 +34,6 @@ namespace Raster
 		Ref<SwapChain> m_SwapChain;
 
 		Ref<VertexBuffer> m_VertexBuffer;
-		Ref<IndexBuffer> m_IndexBuffer;
 
 		Vector2 m_ViewportSize = { 1200, 720 };
 	};

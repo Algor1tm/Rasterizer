@@ -37,15 +37,19 @@ namespace Raster
 		RasterizerState state;
 		m_Rasterizer = Rasterizer::Create(state);
 
-		float vertices[] = { 0.f,  -0.9f, 0,   1, 0, 0, 1, 
-							 -0.75f, 0.5f, 0,   0, 1, 0, 1, 
-							 0.75f,  0.5f, 0,   0, 0, 1, 1, };
+		float vertices[] = { 0.f,  -0.5f, 0,   1, 0, 0, 1, 
+							-0.6f, 0.4f, 0,   0, 1, 0, 1, 
+							 0.6f,  0.4f, 0,   0, 0, 1, 1, };
 		
-
-		m_VertexBuffer = VertexBuffer::Create((Vertex*)vertices, std::size(vertices) / 6);
-
 		uint32 indices[] = { 0, 1, 2 };
-		m_IndexBuffer = IndexBuffer::Create(indices, std::size(indices));
+
+		VertexBufferCreateInfo triangleInfo;
+		triangleInfo.Data = (Vertex*)vertices;
+		triangleInfo.Size = std::size(vertices) / 6;
+		triangleInfo.Primitives = PrimitiveType::TRIANGLE_LIST;
+		triangleInfo.IndexBuffer = IndexBuffer::Create(indices, std::size(indices));
+
+		m_VertexBuffer = VertexBuffer::Create(triangleInfo);
 	}
 
 	void AppLayer::OnAttach()
@@ -92,7 +96,7 @@ namespace Raster
 		posy = (posy + 1) % (uint32)(m_RenderTarget->GetHeight() - 101);
 
 		// Triangle
-		m_Rasterizer->DrawTriangles(m_VertexBuffer, m_IndexBuffer);
+		m_Rasterizer->DrawElements(m_VertexBuffer);
 
 		m_Rasterizer->EndRenderPass();
 
@@ -148,7 +152,25 @@ namespace Raster
 		if (oldVSync != newVSync)
 			Core::Application::Get().GetWindow().SetVSync(newVSync);
 
+		std::vector<Vertex>& vertices = m_VertexBuffer->GetData();
+
+		DrawVertexEditor("Point0", vertices[0]);
+		DrawVertexEditor("Point1", vertices[1]);
+		DrawVertexEditor("Point2", vertices[2]);
+
 		ImGui::End();
+	}
+
+	void AppLayer::DrawVertexEditor(std::string_view label, Vertex& vertex)
+	{
+		ImGui::PushID(label.data());
+
+		ImGui::Text(label.data());
+		ImGui::DragFloat2("Position", vertex.Position.Data(), 0.05);
+		ImGui::ColorEdit4("Color", vertex.Color.Data());
+
+		ImGui::PopID();
+		ImGui::Spacing();
 	}
 
 	bool AppLayer::OnWindowResize(Core::WindowResizeEvent& event)

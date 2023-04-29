@@ -22,16 +22,19 @@ namespace Raster
 		m_DrawCallInfo = DrawCallInfo();
 	}
 
-	void Rasterizer::DrawTriangles(Ref<VertexBuffer> vertices, Ref<IndexBuffer> indices)
+	void Rasterizer::DrawElements(Ref<VertexBuffer> vertices)
 	{
 		if (m_RenderPass.OutputRenderTarget == nullptr)
 			return;
 		
+		Ref<IndexBuffer> indices = vertices->GetIndexBuffer();
+
 		if (vertices == nullptr || indices == nullptr)
 			return;
 
 		m_DrawCallInfo.InputVertexBuffer = vertices->Data();
 		m_DrawCallInfo.InputIndexBuffer = indices->Data();
+		m_DrawCallInfo.InputPrimitives = vertices->GetPrimitiveType();
 
 		ExecuteGraphicsPipeline();
 	}
@@ -53,7 +56,7 @@ namespace Raster
 	bool Rasterizer::NextPrimitive()
 	{
 		uint32 vertexCount = 0;
-		if (m_DrawCallInfo.InputPrimitives == Primitives::TRIANGLE_LIST)
+		if (m_DrawCallInfo.InputPrimitives == PrimitiveType::TRIANGLE_LIST)
 			vertexCount = 3;
 
 		if (m_DrawCallInfo.NextPrimitiveIndex + vertexCount <= m_DrawCallInfo.InputIndexBuffer.size())
@@ -102,6 +105,8 @@ namespace Raster
 		for (uint32 i = 0; i < m_DrawCallInfo.ClipSpacePositions.size(); ++i)
 		{
 			Vector2 viewSpace = (m_DrawCallInfo.ClipSpacePositions[i] + 1.f) / 2.f;
+			viewSpace = Math::Clamp(viewSpace, 0, 1);
+
 			m_DrawCallInfo.ScreenSpacePositions[i].x = viewSpace.x * m_RenderPass.OutputRenderTarget->GetWidth();
 			m_DrawCallInfo.ScreenSpacePositions[i].y = viewSpace.y * m_RenderPass.OutputRenderTarget->GetHeight();
 		}
@@ -114,7 +119,7 @@ namespace Raster
 
 		switch (m_DrawCallInfo.InputPrimitives)
 		{
-		case Primitives::TRIANGLE_LIST:
+		case PrimitiveType::TRIANGLE_LIST:
 		{
 			RasterizeTriangle();
 			break;
@@ -136,7 +141,7 @@ namespace Raster
 	{
 		switch (m_DrawCallInfo.InputPrimitives)
 		{
-		case Primitives::TRIANGLE_LIST:
+		case PrimitiveType::TRIANGLE_LIST:
 		{
 			TrilinearInterpolation();
 			break;
