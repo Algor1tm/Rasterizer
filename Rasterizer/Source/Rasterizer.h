@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Buffers.h"
+#include "Texture.h"
 #include "RenderTarget.h"
 #include "Shader.h"
 
@@ -17,6 +18,7 @@ namespace Raster
 	struct RenderPass
 	{
 		Ref<RenderTarget> OutputRenderTarget;
+		Shader* Shader;
 		VertexShader VertexShader;
 		FragmentShader FragmentShader;
 	};
@@ -30,6 +32,8 @@ namespace Raster
 		void EndRenderPass();
 
 		void DrawElements(Ref<VertexBuffer> vertices);
+
+		void BindTexture(Ref<Texture> texture, uint8 slot) { m_TextureSlots[slot] = texture; }
 
 	private:
 		void ExecuteGraphicsPipeline();
@@ -84,5 +88,7 @@ namespace Raster
 		RenderPass m_RenderPass;
 
 		DrawCallInfo m_DrawCallInfo;
+
+		std::unordered_map<uint8, Ref<Texture>> m_TextureSlots;
 	};
 }

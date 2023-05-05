@@ -35,6 +35,8 @@ namespace Raster
 		m_DrawCallInfo.InputVertexBuffer = vertices->Data();
 		m_DrawCallInfo.InputIndexBuffer = indices->Data();
 		m_DrawCallInfo.InputPrimitives = vertices->GetPrimitiveType();
+		
+		m_RenderPass.Shader->m_TextureSlots = &m_TextureSlots;
 
 		ExecuteGraphicsPipeline();
 	}
@@ -92,9 +94,11 @@ namespace Raster
 			const Vertex& vertex = m_DrawCallInfo.Vertexes[i];
 			input.Position = vertex.Position;
 			input.Color = vertex.Color;
+			input.TexCoords = vertex.TexCoords;
 
-			m_DrawCallInfo.VertexInterpolators[i] = m_RenderPass.VertexShader(input, homogeneousPositions[i]);
+			m_DrawCallInfo.VertexInterpolators[i] = m_RenderPass.VertexShader(input);
 
+			homogeneousPositions[i] = m_RenderPass.Shader->Vertex_Position;
 			m_DrawCallInfo.ClipSpacePositions[i] = Vector2(homogeneousPositions[i] / homogeneousPositions[i].w);
 		}
 	}
@@ -161,7 +165,10 @@ namespace Raster
 		}
 		}
 
+		m_RenderPass.Shader->Fragment_PixelCoords = m_DrawCallInfo.PixelCoords;
+
 		Vector4 color = m_RenderPass.FragmentShader(m_DrawCallInfo.PixelInterpolators);
+
 		color = Math::Clamp(color, 0.f, 1.f);
 		m_DrawCallInfo.PixelColor = color;
 	}
@@ -196,7 +203,7 @@ namespace Raster
 		float fullArea = TriangleArea(p1 - p0, p2 - p0);
 		float area0 = TriangleArea(p1 - x, p2 - x);
 		float area1 = TriangleArea(p2 - x, p0 - x);
-		float area2 = TriangleArea(p0 - x, p1 - x);
+		float area2 = fullArea - area0 - area1;
 
 		float w0 = area0 / fullArea;
 		float w1 = area1 / fullArea;
@@ -205,6 +212,7 @@ namespace Raster
 		const auto& vertInterp = m_DrawCallInfo.VertexInterpolators;
 
 		m_DrawCallInfo.PixelInterpolators.Color = w0 * vertInterp[0].Color + w1 * vertInterp[1].Color + w2 * vertInterp[2].Color;
+		m_DrawCallInfo.PixelInterpolators.TexCoords = w0 * vertInterp[0].TexCoords + w1 * vertInterp[1].TexCoords + w2 * vertInterp[2].TexCoords;
 	}
 
 	void Rasterizer::LinearInterpolation()
@@ -219,6 +227,7 @@ namespace Raster
 		const auto& vertInterp = m_DrawCallInfo.VertexInterpolators;
 
 		m_DrawCallInfo.PixelInterpolators.Color = vertInterp[0].Color + vertInterp[1].Color * percent;
+		m_DrawCallInfo.PixelInterpolators.TexCoords = vertInterp[0].TexCoords + vertInterp[1].TexCoords * percent;
 	}
 
 	void Rasterizer::RasterizeTriangle()

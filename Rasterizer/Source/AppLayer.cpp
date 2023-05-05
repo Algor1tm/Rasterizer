@@ -1,33 +1,11 @@
 #include "AppLayer.h"
 
-#include "Shader.h"
-
 #include <Core/Application.h>
 #include <ImGui/imgui.h>
 
 
-
 namespace Raster
 {
-	class MyShader
-	{
-	public:
-		static Interpolators VertexShader(const VertexShaderInput& input, Vector4& outPosition)
-		{
-			Interpolators output;
-			output.Color = input.Color;
-
-			outPosition = input.Position;
-
-			return output;
-		}
-
-		static Vector4 FragmentShader(const Interpolators& input)
-		{
-			return input.Color;
-		}
-	};
-
 	AppLayer::AppLayer()
 		: Layer("RasterizerLayer")
 	{
@@ -37,11 +15,12 @@ namespace Raster
 		RasterizerState state;
 		m_Rasterizer = Rasterizer::Create(state);
 
-		float vertices[] = { 0.f,  -0.5f, 0,   1, 0, 0, 1, 
-							-0.6f, 0.4f, 0,    0, 1, 0, 1, 
-							 0.6f,  0.4f, 0,   0, 0, 1, 1, };
+		float vertices[] = { -0.3f, -0.3f, 0,   1, 0, 0, 1,   0.f, 0.f, 
+							 -0.3f,  0.3f, 0,   0, 1, 0, 1,   0.f, 1.f,
+							  0.3f, -0.3f, 0,   0, 0, 1, 1,   1.f, 0.f,
+							  0.3f,  0.3f, 0,   1, 0, 0, 1,   1.f, 1.f, };
 		
-		uint32 indices[] = { 0, 1, 2 };
+		uint32 indices[] = { 0, 1, 2, 2, 1, 3 };
 
 		VertexBufferCreateInfo triangleInfo;
 		triangleInfo.Data = (Vertex*)vertices;
@@ -51,8 +30,8 @@ namespace Raster
 
 		m_VertexBuffer = VertexBuffer::Create(triangleInfo);
 
-		float lineVertices[] = { -0.5f, -0.5f, 0,   1, 0, 0, 1,
-								  0.5f,  0.5f, 0,   0, 0, 1, 1 };
+		float lineVertices[] = { -0.5f, -0.5f, 0,   1, 0, 0, 1,	 0.f, 0.f,
+								  0.5f,  0.5f, 0,   0, 0, 1, 1,  1.f, 1.f };
 
 		uint32 lineIndices[] = { 0, 1 };
 
@@ -63,6 +42,9 @@ namespace Raster
 		lineInfo.IndexBuffer = IndexBuffer::Create(lineIndices, std::size(lineIndices));
 
 		m_LineVertexBuffer = VertexBuffer::Create(lineInfo);
+
+		m_Emoji = Texture::Create("Assets/Textures/AwesomeFace128x128.png");
+		m_Wallpapers = Texture::Create("Assets/Textures/Wallpapers256x256.jpg");
 	}
 
 	void AppLayer::OnAttach()
@@ -90,11 +72,15 @@ namespace Raster
 
 		RenderPass geometryPass;
 		geometryPass.OutputRenderTarget = m_RenderTarget;
-		geometryPass.VertexShader = &MyShader::VertexShader;
-		geometryPass.FragmentShader = &MyShader::FragmentShader;
+		geometryPass.Shader = &m_Shader;
+		geometryPass.VertexShader = BIND_VERTEX_SHADER(m_Shader);
+		geometryPass.FragmentShader = BIND_FRAGMENT_SHADER(m_Shader);
 
 		m_Rasterizer->BeginRenderPass(geometryPass);
 		m_RenderTarget->Clear({ 0.8f, 0.3f, 0.2f, 1.f });
+
+		m_Rasterizer->BindTexture(m_Emoji, 0);
+		m_Rasterizer->BindTexture(m_Wallpapers, 1);
 
 		// Rect
 		for (int32 x = 0; x < 100; ++x)
@@ -109,7 +95,7 @@ namespace Raster
 		posy = (posy + 1) % (uint32)(m_RenderTarget->GetHeight() - 101);
 
 		m_Rasterizer->DrawElements(m_VertexBuffer);
-		m_Rasterizer->DrawElements(m_LineVertexBuffer);
+		//m_Rasterizer->DrawElements(m_LineVertexBuffer);
 
 		m_Rasterizer->EndRenderPass();
 
@@ -149,14 +135,14 @@ namespace Raster
 		const auto& [viewportX, viewportY] = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportX, viewportY };
 
-		ImGui::Image(m_SwapChain->GetNativeTextureHandle(), { (float)m_RenderTarget->GetWidth(), (float)m_RenderTarget->GetHeight() });
+		ImGui::Image(m_SwapChain->GetNativeTextureHandle(), { (float)m_RenderTarget->GetWidth(), (float)m_RenderTarget->GetHeight() }, { 0, 1 }, { 1, 0 });
 
 		ImGui::End();
 		ImGui::PopStyleVar();
 
 		ImGui::Begin("Settings");
 
-		ImGui::Text("FrameTime: %.3f", 1.f / m_FrameTime.AsSeconds());
+		ImGui::Text("FPS: %.3f", 1.f / m_FrameTime.AsSeconds());
 
 		bool oldVSync = Core::Application::Get().GetWindow().IsVSync();
 		bool newVSync = oldVSync;
@@ -164,6 +150,10 @@ namespace Raster
 
 		if (oldVSync != newVSync)
 			Core::Application::Get().GetWindow().SetVSync(newVSync);
+
+		ImGui::Spacing();
+		ImGui::Spacing();
+		ImGui::Spacing();
 
 		std::vector<Vertex>& vertices = m_VertexBuffer->GetData();
 
@@ -190,8 +180,9 @@ namespace Raster
 		ImGui::PushID(label.data());
 
 		ImGui::Text(label.data());
-		ImGui::DragFloat2("Position", vertex.Position.Data(), 0.05);
+		ImGui::DragFloat2("Position", vertex.Position.Data(), 0.05f);
 		ImGui::ColorEdit4("Color", vertex.Color.Data());
+		ImGui::DragFloat2("TexCoords", vertex.TexCoords.Data(), 0.05f);
 
 		ImGui::PopID();
 		ImGui::Spacing();

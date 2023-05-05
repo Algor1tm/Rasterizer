@@ -15,6 +15,7 @@ namespace Raster
 	{
 		Vector3 Position;
 		Core::LinearColor Color;
+		Vector2 TexCoords;
 	};
 
 	class IndexBuffer
