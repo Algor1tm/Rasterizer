@@ -145,7 +145,7 @@ namespace Raster
 		//	return;
 
 		FragmentShading();
-		//Blending();
+		Blending();
 		RecordPixel();
 	}
 
@@ -171,6 +171,18 @@ namespace Raster
 
 		color = Math::Clamp(color, 0.f, 1.f);
 		m_DrawCallInfo.PixelColor = color;
+	}
+
+	void Rasterizer::Blending()
+	{
+		auto [x, y] = m_DrawCallInfo.PixelCoords;
+
+		Vector4 dstColor = m_RenderPass.OutputRenderTarget->Get(x, y);
+		Vector4 srcColor = m_DrawCallInfo.PixelColor;
+
+		Vector4 result = srcColor * srcColor.w + dstColor * (1 - srcColor.w);
+
+		m_DrawCallInfo.PixelColor = result;
 	}
 
 	void Rasterizer::RecordPixel()

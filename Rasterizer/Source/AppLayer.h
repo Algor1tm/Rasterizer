@@ -30,10 +30,19 @@ namespace Raster
 		Vector4 FragmentShader(const Interpolators& input)
 		{
 			Ref<Texture> texture = GetTexture(0);
-			Vector4 texColor = texture->Sample(input.TexCoords);
+			Vector4 texColor = texture->Sample(input.TexCoords * Tiling);
 
-			return texColor;
+			Vector4 result = texColor;
+
+			if (EnableVerticesColor)
+				result *= input.Color;
+
+			return result;
 		}
+
+	public:
+		float Tiling = 1.f;
+		bool EnableVerticesColor = false;
 	};
 
 	class AppLayer : public Core::Layer
@@ -46,11 +55,19 @@ namespace Raster
 
 		void OnImGuiRender() override;
 		void OnUpdate(Core::Time frameTime) override;
-		void OnEvent(Core::Event& event) override;
 
 	private:
-		bool OnWindowResize(Core::WindowResizeEvent& event);
-		void DrawVertexEditor(std::string_view label, Vertex& vertex);
+		void InitVertexBuffers();
+
+		void GeneralEditor();
+		void MeshesEditor();
+		void RasterizerEditor();
+
+		bool BeginTreeNode(std::string_view label, bool defaultOpen = false);
+		void EndTreeNode();
+
+		void TextureEditor(Ref<Texture> texture);
+		void VertexBufferEditor(Ref<VertexBuffer> vertexBuffer);
 
 	private:
 		Core::Time m_FrameTime;
@@ -60,10 +77,11 @@ namespace Raster
 		Ref<Rasterizer> m_Rasterizer;
 		Ref<SwapChain> m_SwapChain;
 
-		Ref<VertexBuffer> m_VertexBuffer;
+		Ref<VertexBuffer> m_QuadVertexBuffer;
 		Ref<VertexBuffer> m_LineVertexBuffer;
 
 		Vector2 m_ViewportSize = { 1200, 720 };
+		Core::LinearColor m_ClearColor = { 0.8f, 0.3f, 0.2f, 1.f };
 
 		Ref<Texture> m_Emoji;
 		Ref<Texture> m_Wallpapers;

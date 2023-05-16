@@ -6,6 +6,23 @@
 
 namespace Raster
 {
+	static std::string_view TextureWrapToString(Core::TextureWrap wrap)
+	{
+		switch (wrap)
+		{
+		case Core::TextureWrap::CLAMP_TO_BORDER: return "CLAMP_TO_BORDER";
+		case Core::TextureWrap::REPEAT: return "REPEAT";
+		}
+
+		return "";
+	}
+
+	static void Spacing(uint32 size)
+	{
+		for (uint32 i = 0; i < size; ++i)
+			ImGui::Spacing();
+	}
+
 	AppLayer::AppLayer()
 		: Layer("RasterizerLayer")
 	{
@@ -15,20 +32,28 @@ namespace Raster
 		RasterizerState state;
 		m_Rasterizer = Rasterizer::Create(state);
 
-		float vertices[] = { -0.3f, -0.3f, 0,   1, 0, 0, 1,   0.f, 0.f, 
-							 -0.3f,  0.3f, 0,   0, 1, 0, 1,   0.f, 1.f,
-							  0.3f, -0.3f, 0,   0, 0, 1, 1,   1.f, 0.f,
-							  0.3f,  0.3f, 0,   1, 0, 0, 1,   1.f, 1.f, };
-		
+		InitVertexBuffers();
+
+		m_Emoji = Texture::Create("Assets/Textures/AwesomeFace128x128.png");
+		m_Wallpapers = Texture::Create("Assets/Textures/Wallpapers256x256.jpg");
+	}
+
+	void AppLayer::InitVertexBuffers()
+	{
+		float vertices[] = { -0.3f, -0.3f, 0,   1, 0, 0, 1,   0.f, 0.f,
+					 -0.3f,  0.3f, 0,   0, 1, 0, 1,   0.f, 1.f,
+					  0.3f, -0.3f, 0,   0, 0, 1, 1,   1.f, 0.f,
+					  0.3f,  0.3f, 0,   1, 0, 0, 1,   1.f, 1.f, };
+
 		uint32 indices[] = { 0, 1, 2, 2, 1, 3 };
 
 		VertexBufferCreateInfo triangleInfo;
 		triangleInfo.Data = (Vertex*)vertices;
-		triangleInfo.Size = std::size(vertices) / 7;
+		triangleInfo.Size = std::size(vertices) / (sizeof(Vertex) / sizeof(float));
 		triangleInfo.Primitives = PrimitiveType::TRIANGLE_LIST;
 		triangleInfo.IndexBuffer = IndexBuffer::Create(indices, std::size(indices));
 
-		m_VertexBuffer = VertexBuffer::Create(triangleInfo);
+		m_QuadVertexBuffer = VertexBuffer::Create(triangleInfo);
 
 		float lineVertices[] = { -0.5f, -0.5f, 0,   1, 0, 0, 1,	 0.f, 0.f,
 								  0.5f,  0.5f, 0,   0, 0, 1, 1,  1.f, 1.f };
@@ -37,14 +62,14 @@ namespace Raster
 
 		VertexBufferCreateInfo lineInfo;
 		lineInfo.Data = (Vertex*)lineVertices;
-		lineInfo.Size = std::size(lineVertices) / 7;
+		lineInfo.Size = std::size(lineVertices) / (sizeof(Vertex) / sizeof(float));
 		lineInfo.Primitives = PrimitiveType::LINE_LIST;
 		lineInfo.IndexBuffer = IndexBuffer::Create(lineIndices, std::size(lineIndices));
 
 		m_LineVertexBuffer = VertexBuffer::Create(lineInfo);
 
-		m_Emoji = Texture::Create("Assets/Textures/AwesomeFace128x128.png");
-		m_Wallpapers = Texture::Create("Assets/Textures/Wallpapers256x256.jpg");
+		Core::Application::Get().GetWindow().SetVSync(false);
+
 	}
 
 	void AppLayer::OnAttach()
@@ -77,7 +102,7 @@ namespace Raster
 		geometryPass.FragmentShader = BIND_FRAGMENT_SHADER(m_Shader);
 
 		m_Rasterizer->BeginRenderPass(geometryPass);
-		m_RenderTarget->Clear({ 0.8f, 0.3f, 0.2f, 1.f });
+		m_RenderTarget->Clear(m_ClearColor);
 
 		m_Rasterizer->BindTexture(m_Emoji, 0);
 		m_Rasterizer->BindTexture(m_Wallpapers, 1);
@@ -94,7 +119,7 @@ namespace Raster
 		posx = (posx + 2) % (uint32)(m_RenderTarget->GetWidth() - 101);
 		posy = (posy + 1) % (uint32)(m_RenderTarget->GetHeight() - 101);
 
-		m_Rasterizer->DrawElements(m_VertexBuffer);
+		m_Rasterizer->DrawElements(m_QuadVertexBuffer);
 		//m_Rasterizer->DrawElements(m_LineVertexBuffer);
 
 		m_Rasterizer->EndRenderPass();
@@ -140,7 +165,14 @@ namespace Raster
 		ImGui::End();
 		ImGui::PopStyleVar();
 
-		ImGui::Begin("Settings");
+		GeneralEditor();
+		MeshesEditor();
+		RasterizerEditor();
+	}
+
+	void AppLayer::GeneralEditor()
+	{
+		ImGui::Begin("General");
 
 		ImGui::Text("FPS: %.3f", 1.f / m_FrameTime.AsSeconds());
 
@@ -151,51 +183,121 @@ namespace Raster
 		if (oldVSync != newVSync)
 			Core::Application::Get().GetWindow().SetVSync(newVSync);
 
-		ImGui::Spacing();
-		ImGui::Spacing();
-		ImGui::Spacing();
+		ImGui::End();
+	}
 
-		std::vector<Vertex>& vertices = m_VertexBuffer->GetData();
+	void AppLayer::MeshesEditor()
+	{
+		ImGui::Begin("Meshes Editor");
 
-		ImGui::Text("TRIANGLE");
-		DrawVertexEditor("Point0", vertices[0]);
-		DrawVertexEditor("Point1", vertices[1]);
-		DrawVertexEditor("Point2", vertices[2]);
+		if (ImGui::Button("Revert Vertex Buffers"))
+		{
+			InitVertexBuffers();
+		}
 
-		std::vector<Vertex>& lineVertices = m_LineVertexBuffer->GetData();
+		if (BeginTreeNode("QUAD"))
+		{
+			VertexBufferEditor(m_QuadVertexBuffer);
+			EndTreeNode();
+		}
 
-		ImGui::Spacing();
-		ImGui::Spacing();
-		ImGui::Spacing();
-
-		ImGui::Text("LINE");
-		DrawVertexEditor("LinePoint0", lineVertices[0]);
-		DrawVertexEditor("LinePoint1", lineVertices[1]);
+		if (BeginTreeNode("LINE"))
+		{
+			VertexBufferEditor(m_LineVertexBuffer);
+			EndTreeNode();
+		}
 
 		ImGui::End();
 	}
 
-	void AppLayer::DrawVertexEditor(std::string_view label, Vertex& vertex)
+	void AppLayer::RasterizerEditor()
 	{
-		ImGui::PushID(label.data());
+		ImGui::Begin("Rasterizer Editor");
+		
+		ImGui::ColorEdit4("Clear Color", m_ClearColor.Data());
 
-		ImGui::Text(label.data());
-		ImGui::DragFloat2("Position", vertex.Position.Data(), 0.05f);
-		ImGui::ColorEdit4("Color", vertex.Color.Data());
-		ImGui::DragFloat2("TexCoords", vertex.TexCoords.Data(), 0.05f);
+		if (BeginTreeNode("Textures"))
+		{
+			ImGui::Text("SMILE-EMOJI:");
+			TextureEditor(m_Emoji);
 
-		ImGui::PopID();
-		ImGui::Spacing();
+			EndTreeNode();
+		}
+
+		Spacing(3);
+
+		if (BeginTreeNode("Shaders"))
+		{
+			ImGui::Text("MY_SHADER:");
+			ImGui::DragFloat("Tiling", &m_Shader.Tiling, 0.05);
+			ImGui::Checkbox("Enable Vertices Colors", &m_Shader.EnableVerticesColor);
+
+			EndTreeNode();
+		}
+
+
+		ImGui::End();
 	}
 
-	bool AppLayer::OnWindowResize(Core::WindowResizeEvent& event)
+	bool AppLayer::BeginTreeNode(std::string_view label, bool defaultOpen)
 	{
-		return false;
+		ImGuiTreeNodeFlags flags =
+			ImGuiTreeNodeFlags_AllowItemOverlap |
+			ImGuiTreeNodeFlags_SpanAvailWidth |
+			ImGuiTreeNodeFlags_Framed |
+			ImGuiTreeNodeFlags_FramePadding;
+
+		if (defaultOpen)
+			flags |= ImGuiTreeNodeFlags_DefaultOpen;
+
+		bool result = ImGui::TreeNodeEx(label.data(), flags, label.data());
+
+		return result;
 	}
 
-	void AppLayer::OnEvent(Core::Event& event)
+	void AppLayer::EndTreeNode()
 	{
-		Core::EventDispatcher dispatcher(event);
-		dispatcher.Dispatch<Core::WindowResizeEvent>(APP_BIND_EVENT_FN(OnWindowResize));
+		ImGui::TreePop();
+	}
+
+	void AppLayer::TextureEditor(Ref<Texture> texture)
+	{
+		Core::TextureWrap& wrap = texture->GetSampler().Wrap;
+
+		std::string_view preview = TextureWrapToString(wrap);  // Pass in the preview value visible before opening the combo (it could be anything)
+		if (ImGui::BeginCombo("Wrap", preview.data()))
+		{
+			const Core::TextureWrap wrapArray[] = { Core::TextureWrap::REPEAT, Core::TextureWrap::CLAMP_TO_BORDER };
+
+			for (uint32 i = 0; i < std::size(wrapArray); ++i)
+			{
+				bool isSelected = wrapArray[i] == wrap;
+				if (ImGui::Selectable(TextureWrapToString(wrapArray[i]).data(), isSelected))
+					wrap = wrapArray[i];
+
+				if (isSelected)
+					ImGui::SetItemDefaultFocus();
+			}
+
+			ImGui::EndCombo();
+		}
+	}
+
+	void AppLayer::VertexBufferEditor(Ref<VertexBuffer> vertexBuffer)
+	{
+		std::vector<Vertex>& vertices = vertexBuffer->GetData();
+
+		for (uint32 i = 0; i < vertices.size(); ++i)
+		{
+			ImGui::PushID(i);
+
+			ImGui::DragFloat2("Position", vertices[i].Position.Data(), 0.05f);
+			ImGui::ColorEdit4("Color", vertices[i].Color.Data());
+			ImGui::DragFloat2("TexCoords", vertices[i].TexCoords.Data(), 0.05f);
+
+			ImGui::PopID();
+
+			Spacing(3);
+		}
 	}
 }

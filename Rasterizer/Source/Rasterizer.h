@@ -47,6 +47,7 @@ namespace Raster
 		void ProcessPixel();
 
 		void FragmentShading();
+		void Blending();
 		void RecordPixel();
 
 		void CleanUp();

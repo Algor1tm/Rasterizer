@@ -12,8 +12,7 @@ namespace Raster
 		Core::TextureFilter MinFilter = Core::TextureFilter::LINEAR;
 		Core::TextureFilter Magilter = Core::TextureFilter::LINEAR;
 
-		Core::TextureWrap Wrap_X = Core::TextureWrap::REPEAT;
-		Core::TextureWrap Wrap_Y = Core::TextureWrap::REPEAT;
+		Core::TextureWrap Wrap = Core::TextureWrap::REPEAT;
 	};
 
 
@@ -26,8 +25,8 @@ namespace Raster
 		uint32 GetHeight() const { return m_Width; }
 
 		Vector4 Sample(Vector2 uv) const;
-		Vector4 Get(Vector2 uv) const;
 
+		Sampler& GetSampler() { return m_Sampler; }
 		void SetSampler(Sampler sampler) { m_Sampler = sampler; }
 
 	private:

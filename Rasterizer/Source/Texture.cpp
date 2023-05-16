@@ -65,25 +65,28 @@ namespace Raster
 
 	Vector4 Texture::Sample(Vector2 uv) const
 	{
-		uint32 x = uv.x * m_Width;
-		uint32 y = uv.y * m_Height;
+		uint64 x = uv.x * m_Width;
+		uint64 y = uv.y * m_Height;
+
+		switch (m_Sampler.Wrap)
+		{
+		case Core::TextureWrap::CLAMP_TO_BORDER:
+		{
+			x = Math::Clamp(x, 0, m_Width - 1);
+			y = Math::Clamp(y, 0, m_Height - 1);
+			break;
+		}
+		case Core::TextureWrap::REPEAT:
+		{
+			x = x % m_Width;
+			y = y % m_Height;
+			break;
+		}
+		}
 
 		uint64 index = x + y * m_Width;
-
-		// NEAREST
-		index = Math::Clamp(index, 0, m_Width * m_Height - 1);
 
 		return m_Pixels[index];
 	}
 
-	Vector4 Texture::Get(Vector2 uv) const
-	{
-		uint32 x = uv.x * m_Width;
-		uint32 y = uv.y * m_Height;
-
-		uint64 index = x + y * m_Width;
-		index = index == m_Pixels.size() ? m_Pixels.size() - 1 : index; // (uv == (1, 1) => last pixel)
-
-		return m_Pixels[index];
-	}
 }
