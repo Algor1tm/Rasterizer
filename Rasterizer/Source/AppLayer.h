@@ -29,7 +29,7 @@ namespace Raster
 
 		Vector4 FragmentShader(const Interpolators& input)
 		{
-			Ref<Texture> texture = GetTexture(0);
+			Ref<Texture> texture = GetTexture(TextureSlot);
 			Vector4 texColor = texture->Sample(input.TexCoords * Tiling);
 
 			Vector4 result = texColor * Tint;
@@ -43,6 +43,7 @@ namespace Raster
 	public:
 		Vector4 Tint = Vector4(1, 1, 1, 1);
 		float Tiling = 1.f;
+		int32 TextureSlot = 0;
 		bool EnableVerticesColor = false;
 	};
 

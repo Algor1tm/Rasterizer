@@ -42,7 +42,7 @@ namespace Raster
 				while (first != last)
 				{
 					Vector3u8 rgb = (*first);
-					Pixel pixel = {rgb.x, rgb.y, rgb.z, 1};
+					Pixel pixel = {rgb.x, rgb.y, rgb.z, 255};
 
 					texture->m_Pixels.push_back(pixel);
 

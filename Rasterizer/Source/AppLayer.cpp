@@ -69,7 +69,6 @@ namespace Raster
 		m_LineVertexBuffer = VertexBuffer::Create(lineInfo);
 
 		Core::Application::Get().GetWindow().SetVSync(false);
-
 	}
 
 	void AppLayer::OnAttach()
@@ -231,6 +230,7 @@ namespace Raster
 			ImGui::Text("MY_SHADER:");
 			ImGui::ColorEdit4("Tint", m_Shader.Tint.Data());
 			ImGui::DragFloat("Tiling", &m_Shader.Tiling, 0.05);
+			ImGui::SliderInt("TextureSlot", &m_Shader.TextureSlot, 0, 1);
 			ImGui::Checkbox("Enable Vertices Colors", &m_Shader.EnableVerticesColor);
 
 			EndTreeNode();
