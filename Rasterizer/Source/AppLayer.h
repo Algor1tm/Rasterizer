@@ -32,7 +32,7 @@ namespace Raster
 			Ref<Texture> texture = GetTexture(0);
 			Vector4 texColor = texture->Sample(input.TexCoords * Tiling);
 
-			Vector4 result = texColor;
+			Vector4 result = texColor * Tint;
 
 			if (EnableVerticesColor)
 				result *= input.Color;
@@ -41,6 +41,7 @@ namespace Raster
 		}
 
 	public:
+		Vector4 Tint = Vector4(1, 1, 1, 1);
 		float Tiling = 1.f;
 		bool EnableVerticesColor = false;
 	};

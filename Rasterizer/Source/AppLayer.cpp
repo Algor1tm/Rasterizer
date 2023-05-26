@@ -229,12 +229,12 @@ namespace Raster
 		if (BeginTreeNode("Shaders"))
 		{
 			ImGui::Text("MY_SHADER:");
+			ImGui::ColorEdit4("Tint", m_Shader.Tint.Data());
 			ImGui::DragFloat("Tiling", &m_Shader.Tiling, 0.05);
 			ImGui::Checkbox("Enable Vertices Colors", &m_Shader.EnableVerticesColor);
 
 			EndTreeNode();
 		}
-
 
 		ImGui::End();
 	}
@@ -264,7 +264,7 @@ namespace Raster
 	{
 		Core::TextureWrap& wrap = texture->GetSampler().Wrap;
 
-		std::string_view preview = TextureWrapToString(wrap);  // Pass in the preview value visible before opening the combo (it could be anything)
+		std::string_view preview = TextureWrapToString(wrap);
 		if (ImGui::BeginCombo("Wrap", preview.data()))
 		{
 			const Core::TextureWrap wrapArray[] = { Core::TextureWrap::REPEAT, Core::TextureWrap::CLAMP_TO_BORDER };
