@@ -9,9 +9,7 @@ namespace Raster
 {
 	struct Sampler
 	{
-		Core::TextureFilter MinFilter = Core::TextureFilter::LINEAR;
-		Core::TextureFilter Magilter = Core::TextureFilter::LINEAR;
-
+		Core::TextureFilter Filter = Core::TextureFilter::LINEAR;
 		Core::TextureWrap Wrap = Core::TextureWrap::REPEAT;
 	};
 
@@ -28,6 +26,10 @@ namespace Raster
 
 		Sampler& GetSampler() { return m_Sampler; }
 		void SetSampler(Sampler sampler) { m_Sampler = sampler; }
+
+	private:
+		void SampleWrap(Core::TextureWrap wrap, float& x, float& y) const;
+		Vector4 SampleFilter(Core::TextureFilter filter, float x, float y) const;
 
 	private:
 		Sampler m_Sampler;

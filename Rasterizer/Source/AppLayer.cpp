@@ -17,6 +17,18 @@ namespace Raster
 		return "";
 	}
 
+	static std::string_view TextureFilterToString(Core::TextureFilter filter)
+	{
+		switch (filter)
+		{
+		case Core::TextureFilter::LINEAR: return "LINEAR";
+		case Core::TextureFilter::NEAREST: return "NEAREST";
+		}
+
+		return "";
+	}
+
+
 	static void Spacing(uint32 size)
 	{
 		for (uint32 i = 0; i < size; ++i)
@@ -34,7 +46,8 @@ namespace Raster
 
 		InitVertexBuffers();
 
-		m_Emoji = Texture::Create("Assets/Textures/AwesomeFace128x128.png");
+		m_Emoji_32 = Texture::Create("Assets/Textures/AwesomeFace32x32.png");
+		m_Emoji_128 = Texture::Create("Assets/Textures/AwesomeFace128x128.png");
 		m_Wallpapers = Texture::Create("Assets/Textures/Wallpapers256x256.jpg");
 	}
 
@@ -103,8 +116,9 @@ namespace Raster
 		m_Rasterizer->BeginRenderPass(geometryPass);
 		m_RenderTarget->Clear(m_ClearColor);
 
-		m_Rasterizer->BindTexture(m_Emoji, 0);
-		m_Rasterizer->BindTexture(m_Wallpapers, 1);
+		m_Rasterizer->BindTexture(m_Emoji_128, 0);
+		m_Rasterizer->BindTexture(m_Emoji_32, 1);
+		m_Rasterizer->BindTexture(m_Wallpapers, 2);
 
 		// Rect
 		for (int32 x = 0; x < 100; ++x)
@@ -217,8 +231,9 @@ namespace Raster
 
 		if (BeginTreeNode("Textures"))
 		{
-			ImGui::Text("SMILE-EMOJI:");
-			TextureEditor(m_Emoji);
+			TextureEditor("SMILE-EMOJI_128x128:", m_Emoji_128);
+			TextureEditor("SMILE-EMOJI_32x32:", m_Emoji_32);
+			TextureEditor("WALLPAPERS_256x256:", m_Wallpapers);
 
 			EndTreeNode();
 		}
@@ -230,7 +245,7 @@ namespace Raster
 			ImGui::Text("MY_SHADER:");
 			ImGui::ColorEdit4("Tint", m_Shader.Tint.Data());
 			ImGui::DragFloat("Tiling", &m_Shader.Tiling, 0.05);
-			ImGui::SliderInt("TextureSlot", &m_Shader.TextureSlot, 0, 1);
+			ImGui::SliderInt("TextureSlot", &m_Shader.TextureSlot, 0, 2);
 			ImGui::Checkbox("Enable Vertices Colors", &m_Shader.EnableVerticesColor);
 
 			EndTreeNode();
@@ -260,8 +275,12 @@ namespace Raster
 		ImGui::TreePop();
 	}
 
-	void AppLayer::TextureEditor(Ref<Texture> texture)
+	void AppLayer::TextureEditor(std::string_view label, Ref<Texture> texture)
 	{
+		ImGui::Text(label.data());
+
+		ImGui::PushID(label.data());
+
 		Core::TextureWrap& wrap = texture->GetSampler().Wrap;
 
 		std::string_view preview = TextureWrapToString(wrap);
@@ -281,6 +300,30 @@ namespace Raster
 
 			ImGui::EndCombo();
 		}
+
+		Core::TextureFilter& filter = texture->GetSampler().Filter;
+
+		preview = TextureFilterToString(filter);
+		if (ImGui::BeginCombo("Filter", preview.data()))
+		{
+			const Core::TextureFilter filterArray[] = { Core::TextureFilter::LINEAR, Core::TextureFilter::NEAREST };
+
+			for (uint32 i = 0; i < std::size(filterArray); ++i)
+			{
+				bool isSelected = filterArray[i] == filter;
+				if (ImGui::Selectable(TextureFilterToString(filterArray[i]).data(), isSelected))
+					filter = filterArray[i];
+
+				if (isSelected)
+					ImGui::SetItemDefaultFocus();
+			}
+
+			ImGui::EndCombo();
+		}
+
+		ImGui::PopID();
+
+		Spacing(2);
 	}
 
 	void AppLayer::VertexBufferEditor(Ref<VertexBuffer> vertexBuffer)

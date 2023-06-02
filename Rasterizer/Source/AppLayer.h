@@ -68,7 +68,7 @@ namespace Raster
 		bool BeginTreeNode(std::string_view label, bool defaultOpen = false);
 		void EndTreeNode();
 
-		void TextureEditor(Ref<Texture> texture);
+		void TextureEditor(std::string_view label, Ref<Texture> texture);
 		void VertexBufferEditor(Ref<VertexBuffer> vertexBuffer);
 
 	private:
@@ -85,7 +85,8 @@ namespace Raster
 		Vector2 m_ViewportSize = { 1200, 720 };
 		Core::LinearColor m_ClearColor = { 0.8f, 0.3f, 0.2f, 1.f };
 
-		Ref<Texture> m_Emoji;
+		Ref<Texture> m_Emoji_128;
+		Ref<Texture> m_Emoji_32;
 		Ref<Texture> m_Wallpapers;
 	};
 }

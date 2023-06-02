@@ -65,28 +65,72 @@ namespace Raster
 
 	Vector4 Texture::Sample(Vector2 uv) const
 	{
-		uint64 x = uv.x * m_Width;
-		uint64 y = uv.y * m_Height;
+		float x = uv.x * m_Width;
+		float y = uv.y * m_Height;
 
-		switch (m_Sampler.Wrap)
+		SampleWrap(m_Sampler.Wrap, x, y);
+
+		Vector4 color = SampleFilter(m_Sampler.Filter, x, y);
+
+		return color;
+	}
+
+	void Texture::SampleWrap(Core::TextureWrap wrap, float& x, float& y) const
+	{
+		switch (wrap)
 		{
 		case Core::TextureWrap::CLAMP_TO_BORDER:
 		{
-			x = Math::Clamp(x, 0, m_Width - 1);
-			y = Math::Clamp(y, 0, m_Height - 1);
+			x = Math::Clamp((uint32)x, 0, m_Width - 1);
+			y = Math::Clamp((uint32)y, 0, m_Height - 1);
 			break;
 		}
 		case Core::TextureWrap::REPEAT:
 		{
-			x = x % m_Width;
-			y = y % m_Height;
+			x = (int32)x % m_Width;
+			y = (int32)y % m_Height;
+			break;
+		}
+		}
+	}
+
+	Vector4 Texture::SampleFilter(Core::TextureFilter filter, float x, float y) const
+	{
+		Vector4 result = Vector4(0, 0, 0, 1);
+
+		switch (filter)
+		{
+		case Core::TextureFilter::LINEAR:
+		{
+			float leftX = Math::Clamp(x, 0, m_Width - 1);
+			float upY = Math::Clamp(y, 0, m_Height - 1);
+			float rightX = Math::Clamp(x + 1, 0, m_Width - 1);
+			float downY = Math::Clamp(y + 1, 0, m_Height - 1);
+
+			float leftUpIndex = leftX + m_Width * upY;
+			float rightUpIndex = rightX + m_Width * upY;
+			float leftDownIndex = leftX + m_Width * downY;
+			float rightDownIndex = rightX + m_Width * downY;
+
+			Vector4 leftUp = m_Pixels[leftUpIndex];
+			Vector4 rightUp = m_Pixels[rightUpIndex];
+			Vector4 leftDown = m_Pixels[leftDownIndex];
+			Vector4 rightDown = m_Pixels[rightDownIndex];
+
+			Vector4 up = Math::Lerp(leftUp, rightUp, x / m_Width);
+			Vector4 down = Math::Lerp(leftDown, rightDown, x / m_Width);
+
+			result = Math::Lerp(up, down, y / m_Height);
+			break;
+		}
+		case Core::TextureFilter::NEAREST:
+		{
+			uint64 index = x + y * m_Width;
+			result = m_Pixels[index];
 			break;
 		}
 		}
 
-		uint64 index = x + y * m_Width;
-
-		return m_Pixels[index];
+		return result;
 	}
-
 }
