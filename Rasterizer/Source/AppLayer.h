@@ -43,7 +43,7 @@ namespace Raster
 	public:
 		Vector4 Tint = Vector4(1, 1, 1, 1);
 		float Tiling = 1.f;
-		int32 TextureSlot = 0;
+		int32 TextureSlot = 2;
 		bool EnableVerticesColor = false;
 	};
 
@@ -78,6 +78,10 @@ namespace Raster
 		Ref<RenderTarget> m_RenderTarget;
 		Ref<Rasterizer> m_Rasterizer;
 		Ref<SwapChain> m_SwapChain;
+
+		Rect m_RasterizerViewport;
+		Rect m_RasterizerScissors;
+		bool m_LockToWindowSize = true;
 
 		Ref<VertexBuffer> m_QuadVertexBuffer;
 		Ref<VertexBuffer> m_LineVertexBuffer;

@@ -5,7 +5,10 @@
 #include "RenderTarget.h"
 #include "Shader.h"
 
+#include <Core/Color.h>
 #include <Math/Vector.h>
+
+#include <array>
 
 
 namespace Raster
@@ -15,12 +18,25 @@ namespace Raster
 		// antialising
 	};
 
+	struct Rect
+	{
+		int32 X;
+		int32 Y;
+		uint32 Width;
+		uint32 Height;
+	};
+
+	using Triangle = std::array<Vector2i, 3>;
+
 	struct RenderPass
 	{
+		Core::LinearColor ClearColor;
 		Ref<RenderTarget> OutputRenderTarget;
 		Shader* Shader;
 		VertexShader VertexShader;
 		FragmentShader FragmentShader;
+		Rect Viewport;
+		Rect Scissors;
 	};
 
 	class Rasterizer
@@ -36,6 +52,9 @@ namespace Raster
 		void BindTexture(Ref<Texture> texture, uint8 slot) { m_TextureSlots[slot] = texture; }
 
 	private:
+		void ComputeRenderArea();
+		void Clear();
+
 		void ExecuteGraphicsPipeline();
 
 		bool NextPrimitive();
@@ -53,8 +72,11 @@ namespace Raster
 		void CleanUp();
 
 	private:
-		void RasterizeTriangle();
-		void RasterizeLine();
+		Vector2i LineLineSegmentIntersection(Vector2i linepoint, Vector2i linenormal, Vector2i p1, Vector2i p2);
+		uint8 ClipTriangleAgainstLine(Vector2i linepoint, Vector2i linenormal, const Triangle& inTri, Triangle& outTri1, Triangle& outTri2);
+
+		void RasterizeTriangle(const Vector2i& p0, const Vector2i& p1, const Vector2i& p2);
+		void RasterizeLine(const Vector2i& p0, const Vector2i& p1);
 
 		void TrilinearInterpolation();
 		void LinearInterpolation();
@@ -71,11 +93,14 @@ namespace Raster
 			std::vector<uint32> InputIndexBuffer;
 			PrimitiveType InputPrimitives = PrimitiveType::TRIANGLE_LIST;
 
+			Rect RenderArea;
+
 			uint32 NextPrimitiveIndex = 0;
 
 			std::vector<Vertex> Vertexes;
 			std::vector<Vector2> ClipSpacePositions;	// [(-1, -1), (1, 1)]
 			std::vector<Vector2i> ScreenSpacePositions; // [(0, 0); (width, height)]
+			std::vector<Vector2i> ClippedScreenSpacePositions; // up to 5 triangles or 1 line
 
 			std::vector<Interpolators> VertexInterpolators;
 

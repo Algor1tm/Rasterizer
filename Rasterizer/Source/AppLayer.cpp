@@ -28,7 +28,6 @@ namespace Raster
 		return "";
 	}
 
-
 	static void Spacing(uint32 size)
 	{
 		for (uint32 i = 0; i < size; ++i)
@@ -49,6 +48,8 @@ namespace Raster
 		m_Emoji_32 = Texture::Create("Assets/Textures/AwesomeFace32x32.png");
 		m_Emoji_128 = Texture::Create("Assets/Textures/AwesomeFace128x128.png");
 		m_Wallpapers = Texture::Create("Assets/Textures/Wallpapers256x256.jpg");
+
+		Core::Application::Get().GetWindow().SetVSync(false);
 	}
 
 	void AppLayer::InitVertexBuffers()
@@ -58,7 +59,7 @@ namespace Raster
 					  0.3f, -0.3f, 0,   0, 0, 1, 1,   1.f, 0.f,
 					  0.3f,  0.3f, 0,   1, 0, 0, 1,   1.f, 1.f, };
 
-		uint32 indices[] = { 0, 1, 2, 2, 1, 3 };
+		uint32 indices[] = { 2, 1, 3, 0, 1, 2,  };
 
 		VertexBufferCreateInfo triangleInfo;
 		triangleInfo.Data = (Vertex*)vertices;
@@ -80,8 +81,6 @@ namespace Raster
 		lineInfo.IndexBuffer = IndexBuffer::Create(lineIndices, std::size(lineIndices));
 
 		m_LineVertexBuffer = VertexBuffer::Create(lineInfo);
-
-		Core::Application::Get().GetWindow().SetVSync(false);
 	}
 
 	void AppLayer::OnAttach()
@@ -104,22 +103,36 @@ namespace Raster
 			m_RenderTarget->Resize(m_ViewportSize.x, m_ViewportSize.y);
 		}
 
-		static uint32 posx = 100;
-		static uint32 posy = 100;
+		if (m_LockToWindowSize)
+		{
+			m_RasterizerViewport.X = 0;
+			m_RasterizerViewport.Y = 0;
+			m_RasterizerViewport.Width = m_ViewportSize.x;
+			m_RasterizerViewport.Height = m_ViewportSize.y;
+
+			m_RasterizerScissors.X = 0;
+			m_RasterizerScissors.Y = 0;
+			m_RasterizerScissors.Width = m_ViewportSize.x;
+			m_RasterizerScissors.Height = m_ViewportSize.y;
+		}
 
 		RenderPass geometryPass;
+		geometryPass.ClearColor = m_ClearColor;
 		geometryPass.OutputRenderTarget = m_RenderTarget;
 		geometryPass.Shader = &m_Shader;
 		geometryPass.VertexShader = BIND_VERTEX_SHADER(m_Shader);
 		geometryPass.FragmentShader = BIND_FRAGMENT_SHADER(m_Shader);
+		geometryPass.Viewport = m_RasterizerViewport;
+		geometryPass.Scissors = m_RasterizerScissors;
 
 		m_Rasterizer->BeginRenderPass(geometryPass);
-		m_RenderTarget->Clear(m_ClearColor);
 
 		m_Rasterizer->BindTexture(m_Emoji_128, 0);
 		m_Rasterizer->BindTexture(m_Emoji_32, 1);
 		m_Rasterizer->BindTexture(m_Wallpapers, 2);
 
+		static uint32 posx = 100;
+		static uint32 posy = 100;
 		// Rect
 		for (int32 x = 0; x < 100; ++x)
 		{
@@ -228,6 +241,41 @@ namespace Raster
 		ImGui::Begin("Rasterizer Editor");
 		
 		ImGui::ColorEdit4("Clear Color", m_ClearColor.Data());
+		ImGui::Checkbox("Lock Viewport to Window size", &m_LockToWindowSize);
+		if (!m_LockToWindowSize)
+		{
+			ImGui::PushID("Viewport");
+			{
+				ImGui::Text("Viewport");
+				ImGui::DragInt("X", &m_RasterizerViewport.X);
+				ImGui::DragInt("Y", &m_RasterizerViewport.Y);
+
+				int32 width = m_RasterizerViewport.Width;
+				ImGui::DragInt("Width", &width);
+				m_RasterizerViewport.Width = Math::Clamp(width, 0, width);
+
+				int32 height = m_RasterizerViewport.Height;
+				ImGui::DragInt("Height", &height);
+				m_RasterizerViewport.Height = Math::Clamp(height, 0, height);
+			}
+			ImGui::PopID();
+
+			ImGui::PushID("Scissors");
+			{
+				ImGui::Text("Scissors");
+				ImGui::DragInt("X", &m_RasterizerScissors.X);
+				ImGui::DragInt("Y", &m_RasterizerScissors.Y);
+
+				int32 width = m_RasterizerScissors.Width;
+				ImGui::DragInt("Width", &width);
+				m_RasterizerScissors.Width = Math::Clamp(width, 0, width);
+
+				int32 height = m_RasterizerScissors.Height;
+				ImGui::DragInt("Height", &height);
+				m_RasterizerScissors.Height = Math::Clamp(height, 0, height);
+			}
+			ImGui::PopID();
+		}
 
 		if (BeginTreeNode("Textures"))
 		{
