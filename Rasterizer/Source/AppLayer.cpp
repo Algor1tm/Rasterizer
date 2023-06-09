@@ -35,7 +35,7 @@ namespace Raster
 	}
 
 	AppLayer::AppLayer()
-		: Layer("RasterizerLayer")
+		: Layer("RasterizerLayer"), m_Camera(16.f / 9.f, true)
 	{
 		m_SwapChain = SwapChain::Create(1, 1);
 		m_RenderTarget = RenderTarget::Create(1, 1);
@@ -101,8 +101,29 @@ namespace Raster
 		{
 			m_SwapChain->Resize(m_ViewportSize.x, m_ViewportSize.y);
 			m_RenderTarget->Resize(m_ViewportSize.x, m_ViewportSize.y);
+			m_Camera.SetViewportSize(m_ViewportSize.x, m_ViewportSize.y);
 		}
 
+#if 0
+		float scaleLength = m_QuadTransform.Scale.Length();
+		static int sign = 1;
+		if (scaleLength >= 2 && sign > 0)
+			sign = -1;
+		
+		if (scaleLength <= 0.2f && sign < 0)
+			sign = 1;
+
+		m_QuadTransform.Scale += Vector3(sign * 1 * frameTime.AsSeconds());
+#endif
+
+		//m_QuadTransform.Rotation.z += 1 * frameTime.AsSeconds();
+
+		m_Camera.OnUpdate(frameTime);
+		Render();
+	}
+
+	void AppLayer::Render()
+	{
 		if (m_LockToWindowSize)
 		{
 			m_RasterizerViewport.X = 0;
@@ -131,21 +152,10 @@ namespace Raster
 		m_Rasterizer->BindTexture(m_Emoji_32, 1);
 		m_Rasterizer->BindTexture(m_Wallpapers, 2);
 
-		static uint32 posx = 100;
-		static uint32 posy = 100;
-		// Rect
-		for (int32 x = 0; x < 100; ++x)
-		{
-			for (int32 y = 0; y < 100; ++y)
-			{
-				m_RenderTarget->Get(posx + x, posy + y) = { 255, 255, 255 };
-			}
-		}
 
-		posx = (posx + 2) % (uint32)(m_RenderTarget->GetWidth() - 101);
-		posy = (posy + 1) % (uint32)(m_RenderTarget->GetHeight() - 101);
-
+		m_Shader.u_MVPMatrix = m_QuadTransform.AsMatrix() * m_Camera.GetViewProjectionMatrix();
 		m_Rasterizer->DrawElements(m_QuadVertexBuffer);
+
 		//m_Rasterizer->DrawElements(m_LineVertexBuffer);
 
 		m_Rasterizer->EndRenderPass();
@@ -194,6 +204,11 @@ namespace Raster
 		GeneralEditor();
 		MeshesEditor();
 		RasterizerEditor();
+	}
+
+	void AppLayer::OnEvent(Core::Event& event)
+	{
+		m_Camera.OnEvent(event);
 	}
 
 	void AppLayer::GeneralEditor()
@@ -291,10 +306,10 @@ namespace Raster
 		if (BeginTreeNode("Shaders"))
 		{
 			ImGui::Text("MY_SHADER:");
-			ImGui::ColorEdit4("Tint", m_Shader.Tint.Data());
-			ImGui::DragFloat("Tiling", &m_Shader.Tiling, 0.05);
-			ImGui::SliderInt("TextureSlot", &m_Shader.TextureSlot, 0, 2);
-			ImGui::Checkbox("Enable Vertices Colors", &m_Shader.EnableVerticesColor);
+			ImGui::ColorEdit4("Tint", m_Shader.u_Tint.Data());
+			ImGui::DragFloat("Tiling", &m_Shader.u_Tiling, 0.05);
+			ImGui::SliderInt("TextureSlot", &m_Shader.u_TextureSlot, 0, 2);
+			ImGui::Checkbox("Enable Vertices Colors", &m_Shader.u_EnableVerticesColor);
 
 			EndTreeNode();
 		}

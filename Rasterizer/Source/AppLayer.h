@@ -1,14 +1,18 @@
 #pragma once
 
-#include <Core/Layer.h>
-#include <Input/ApplicationEvent.h>
-
 #include "Buffers.h"
+#include "Camera.h"
 #include "Texture.h"
 #include "RenderTarget.h"
 #include "Rasterizer.h"
 #include "Shader.h"
 #include "SwapChain.h"
+
+#include <Core/Layer.h>
+#include <Input/ApplicationEvent.h>
+#include <Math/Matrix.h>
+#include <Math/Transforms.h>
+#include <Math/Quaternion.h>
 
 
 namespace Raster
@@ -22,29 +26,49 @@ namespace Raster
 			output.Color = input.Color;
 			output.TexCoords = input.TexCoords;
 
-			Vertex_Position = input.Position;
+			Vertex_Position = Vector4(input.Position, 1) * u_MVPMatrix;
 
 			return output;
 		}
 
 		Vector4 FragmentShader(const Interpolators& input)
 		{
-			Ref<Texture> texture = GetTexture(TextureSlot);
-			Vector4 texColor = texture->Sample(input.TexCoords * Tiling);
+			Ref<Texture> texture = GetTexture(u_TextureSlot);
+			Vector4 texColor = texture->Sample(input.TexCoords * u_Tiling);
 
-			Vector4 result = texColor * Tint;
+			Vector4 result = texColor * u_Tint;
 
-			if (EnableVerticesColor)
+			if (u_EnableVerticesColor)
 				result *= input.Color;
 
 			return result;
 		}
 
 	public:
-		Vector4 Tint = Vector4(1, 1, 1, 1);
-		float Tiling = 1.f;
-		int32 TextureSlot = 2;
-		bool EnableVerticesColor = false;
+		// Vertex Shader Uniforms
+		Matrix4 u_MVPMatrix = Matrix4::Identity();
+
+		// Fragment Shader Uniforms
+		Vector4 u_Tint = Vector4(1, 1, 1, 1);
+		float u_Tiling = 1.f;
+		int32 u_TextureSlot = 0;
+		bool u_EnableVerticesColor = false;
+	};
+
+	struct Transform
+	{
+		Vector3 Translation = { 0.f, 0.f, 0.f };
+		Vector3 Rotation = { 0.f, 0.f, 0.f };
+		Vector3 Scale = { 1.f, 1.f, 1.f };
+
+		Transform() = default;
+		Transform(const Vector3& position)
+			: Translation(position) {}
+
+		Matrix4 AsMatrix() const
+		{
+			return Math::ConstructTransform(Translation, Scale, Quaternion(Rotation));
+		}
 	};
 
 	class AppLayer : public Core::Layer
@@ -52,13 +76,16 @@ namespace Raster
 	public:
 		AppLayer();
 
-		void OnAttach() override;
-		void OnDetach() override;
+		virtual void OnAttach() override;
+		virtual void OnDetach() override;
 
-		void OnImGuiRender() override;
-		void OnUpdate(Core::Time frameTime) override;
+		virtual void OnImGuiRender() override;
+		virtual void OnUpdate(Core::Time frameTime) override;
+		virtual void OnEvent(Core::Event& event) override;
 
 	private:
+		void Render();
+
 		void InitVertexBuffers();
 
 		void GeneralEditor();
@@ -73,6 +100,8 @@ namespace Raster
 
 	private:
 		Core::Time m_FrameTime;
+
+		OrthographicCamera m_Camera;
 
 		MyShader m_Shader;
 		Ref<RenderTarget> m_RenderTarget;
@@ -92,5 +121,7 @@ namespace Raster
 		Ref<Texture> m_Emoji_128;
 		Ref<Texture> m_Emoji_32;
 		Ref<Texture> m_Wallpapers;
+
+		Transform m_QuadTransform;
 	};
 }
