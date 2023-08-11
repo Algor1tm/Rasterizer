@@ -1,39 +1,15 @@
 #include "AppLayer.h"
 
+#include "Utils.h"
+
 #include <Core/Application.h>
+#include <ImGui/ImGuiLayer.h>
+
 #include <ImGui/imgui.h>
 
 
 namespace Raster
 {
-	static std::string_view TextureWrapToString(Core::TextureWrap wrap)
-	{
-		switch (wrap)
-		{
-		case Core::TextureWrap::CLAMP_TO_BORDER: return "CLAMP_TO_BORDER";
-		case Core::TextureWrap::REPEAT: return "REPEAT";
-		}
-
-		return "";
-	}
-
-	static std::string_view TextureFilterToString(Core::TextureFilter filter)
-	{
-		switch (filter)
-		{
-		case Core::TextureFilter::LINEAR: return "LINEAR";
-		case Core::TextureFilter::NEAREST: return "NEAREST";
-		}
-
-		return "";
-	}
-
-	static void Spacing(uint32 size)
-	{
-		for (uint32 i = 0; i < size; ++i)
-			ImGui::Spacing();
-	}
-
 	AppLayer::AppLayer()
 		: Layer("RasterizerLayer"), m_Camera(16.f / 9.f, true)
 	{
@@ -49,6 +25,7 @@ namespace Raster
 		m_Emoji_128 = Texture::Create("Assets/Textures/AwesomeFace128x128.png");
 		m_Wallpapers = Texture::Create("Assets/Textures/Wallpapers256x256.jpg");
 
+		Core::Application::Get().GetImGuiLayer()->BlockEvents(false);
 		Core::Application::Get().GetWindow().SetVSync(false);
 	}
 
@@ -114,9 +91,9 @@ namespace Raster
 			sign = 1;
 
 		m_QuadTransform.Scale += Vector3(sign * 1 * frameTime.AsSeconds());
-#endif
 
-		//m_QuadTransform.Rotation.z += 1 * frameTime.AsSeconds();
+		m_QuadTransform.Rotation.z += 1 * frameTime.AsSeconds();
+#endif
 
 		m_Camera.OnUpdate(frameTime);
 		Render();
@@ -152,11 +129,11 @@ namespace Raster
 		m_Rasterizer->BindTexture(m_Emoji_32, 1);
 		m_Rasterizer->BindTexture(m_Wallpapers, 2);
 
-
 		m_Shader.u_MVPMatrix = m_QuadTransform.AsMatrix() * m_Camera.GetViewProjectionMatrix();
-		m_Rasterizer->DrawElements(m_QuadVertexBuffer);
-
-		//m_Rasterizer->DrawElements(m_LineVertexBuffer);
+		//m_Rasterizer->DrawElements(m_QuadVertexBuffer);
+		
+		m_Shader.u_MVPMatrix = m_Camera.GetViewProjectionMatrix();
+		m_Rasterizer->DrawElements(m_LineVertexBuffer);
 
 		m_Rasterizer->EndRenderPass();
 
@@ -193,6 +170,7 @@ namespace Raster
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, { 0.f, 0.f });
 		ImGui::Begin("Viewport");
 
+		m_IsViewportHovered = ImGui::IsWindowHovered();
 		const auto& [viewportX, viewportY] = ImGui::GetContentRegionAvail();
 		m_ViewportSize = { viewportX, viewportY };
 
@@ -208,7 +186,10 @@ namespace Raster
 
 	void AppLayer::OnEvent(Core::Event& event)
 	{
-		m_Camera.OnEvent(event);
+		if (m_IsViewportHovered)
+		{
+			m_Camera.OnEvent(event);
+		}
 	}
 
 	void AppLayer::GeneralEditor()
@@ -238,12 +219,28 @@ namespace Raster
 
 		if (BeginTreeNode("QUAD"))
 		{
+			float height = ImGui::GetFrameHeight();
+
+			ImGui::Text("TRANSFORM");
+
+			DrawVec3Controller("Translation", m_QuadTransform.Translation, 0.0f, height);
+			Vector3 degrees = Math::Degrees(m_QuadTransform.Rotation);
+			DrawVec3Controller("Rotation", degrees, 0.0f, height);
+			m_QuadTransform.Rotation = Math::Radians(degrees);
+			DrawVec3Controller("Scale", m_QuadTransform.Scale, 1.0f, height);
+
+			Spacing(2);
+
+			ImGui::Text("VERTICES");
+
 			VertexBufferEditor(m_QuadVertexBuffer);
 			EndTreeNode();
 		}
 
 		if (BeginTreeNode("LINE"))
 		{
+			ImGui::Text("VERTICES");
+
 			VertexBufferEditor(m_LineVertexBuffer);
 			EndTreeNode();
 		}

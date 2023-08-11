@@ -295,8 +295,10 @@ namespace Raster
 		}
 	}
 	
-	void Rasterizer::ProcessPixel()
+	void Rasterizer::ProcessPixel(int32 x, int32 y)
 	{
+		m_DrawCallInfo.PixelCoords = { x, y };
+
 		//if(!DepthTest())
 		//	return;
 
@@ -424,34 +426,152 @@ namespace Raster
 		}
 	}
 
-	void Rasterizer::RasterizeLine(const Vector2i& p0, const Vector2i& p1)
+	void Rasterizer::RasterizeLine(const Vector2i& p2, const Vector2i& p1)
 	{
-		float kx = (p1.y - p1.y) / (float)(p1.x - p0.x);
-		float ky = 1 / kx;
+		// calculate dx & dy
+		int dx = p2.x - p1.x;
+		int dy = p2.y - p1.y;
 
-		float x = p0.x;
-		float y = p0.y;
+		// calculate steps required for generating pixels
+		int steps = abs(dx) > abs(dy) ? abs(dx) : abs(dy);
 
-		if (Math::Abs(kx) >= 0 && Math::Abs(kx) <= 1) 
-		{
-			for (int32 x = Math::Min(p0.x, p1.x); x < Math::Max(p0.x, p1.x); ++x)
-			{
-				y += kx;
+		// calculate increment in x & y for each steps
+		float Xinc = dx / (float)steps;
+		float Yinc = dy / (float)steps;
 
-				m_DrawCallInfo.PixelCoords = { x, y };
-				ProcessPixel();
-			}
+		// Put pixel for each step
+		float X = p1.x;
+		float Y = p1.y;
+		for (int i = 0; i <= steps; i++) {
+			ProcessPixel(round(X), round(Y));
+			X += Xinc; // increment in x at each step
+			Y += Yinc; // increment in y at each step
 		}
-		else 
-		{
-			for (int32 y = Math::Min(p0.y, p1.y); y < Math::Max(p0.y, p1.y); ++y)
-			{
-				x += ky;
 
-				m_DrawCallInfo.PixelCoords = { x, y };
-				ProcessPixel();
-			}
-		}
+		//int32 x1 = Math::Min(p1.x, p2.x);
+		//int32 y1 = Math::Min(p1.y, p2.y);
+		//int32 x2 = Math::Max(p1.x, p2.x);
+		//int32 y2 = Math::Max(p1.y, p2.y);
+		//
+		//int32 m_new = 2 * (y2 - y1);
+		//int32 slope_error_new = m_new - (x2 - x1);
+		//for (int x = x1, y = y1; x <= x2; x++)
+		//{
+		//	ProcessPixel(x, y);
+		//	// Add slope to increment angle formed
+		//	slope_error_new += m_new;
+		//
+		//	// Slope error reached limit, time to
+		//	// increment y and update slope error.
+		//	if (slope_error_new >= 0) {
+		//		y++;
+		//		slope_error_new -= 2 * (x2 - x1);
+		//	}
+		//}
+
+#if 0
+		//int32 dx = Math::Abs(p2.x - p1.x);
+		//int32 dy = Math::Abs(p2.y - p1.y);
+		//int32 steps, k;
+		//steps = dx;
+		//int32 x, y, p0 = (2 * dy) - dx;
+		//ProcessPixel(p1.x, p1.y);
+		//x = p1.x;
+		//y = p1.y;
+		//for (k = 0; k < steps; k++)
+		//{
+		//	if (p0 < 0)
+		//	{
+		//		p0 = p0 + (2 * dy);
+		//		x += 1;
+		//	}
+		//	else
+		//	{
+		//		p0 = p0 + (2 * dy) - (2 * dx);
+		//		x += 1;
+		//		y += 1;
+		//	}
+		//	ProcessPixel(x, y);
+		//}
+#else
+		//int32 x1 = Math::Floor(p1.x);
+		//int32 y1 = Math::Floor(p1.y);
+		//int32 x2 = Math::Floor(p2.x);
+		//int32 y2 = Math::Floor(p2.y);
+		//int32 deltaX = Math::Abs(x2 - x1);
+		//int32 deltaY = Math::Abs(y2 - y1);
+		//int32 stepX = (x1 < x2) ? 1 : -1;
+		//int32 stepY = (y1 < y2) ? 1 : -1;
+		//float x = x1;
+		//float y = y1;
+
+		//if (deltaX == 0 && deltaY == 0) 
+		//{
+		//	ProcessPixel(x, y);
+		//	return;
+		//}
+
+		//if (deltaX > deltaY) 
+		//{
+		//	int32 error = 2 * deltaY - deltaX;
+		//	for (int32 i = 0; i <= deltaX; i++)
+		//	{
+		//		x += 0.5f;
+		//		y += 0.5f;
+		//		ProcessPixel(x, y);
+
+		//		if (error > 0) 
+		//		{
+		//			error -= deltaX * 2;
+		//			y += stepY;
+		//		}
+
+		//		x += stepX;
+		//		error += deltaY * 2;
+		//	}
+		//}
+		//else 
+		//{
+		//	int32 error = 2 * deltaX - deltaY;
+		//	for (int32 i = 0; i <= deltaY; i++)
+		//	{
+		//		x += 0.5f;
+		//		y += 0.5f;
+		//		ProcessPixel(x, y);
+
+		//		if (error > 0) 
+		//		{
+		//			error -= deltaY * 2;
+		//			x += stepX;
+		//		}
+
+		//		y += stepY;
+		//		error += deltaX * 2;
+		//	}
+		//}
+#endif
+//		float kx = (p1.y - p0.y) / (float)(p1.x - p0.x);
+//		float ky = 1 / kx;
+//
+//		float x = p0.x;
+//		float y = p0.y;
+//
+//		if (Math::Abs(kx) >= 0 && Math::Abs(kx) <= 1) 
+//		{
+//			for (int32 x = Math::Min(p0.x, p1.x); x < Math::Max(p0.x, p1.x); ++x)
+//			{
+//				y += kx;
+//				ProcessPixel(x, y);
+//			}
+//		}
+//		else 
+//		{
+//			for (int32 y = Math::Min(p0.y, p1.y); y < Math::Max(p0.y, p1.y); ++y)
+//			{
+//				x += ky;
+//				ProcessPixel(x, y);
+//			}
+//		}
 	}
 
 	void Rasterizer::FillBottomFlatTriangle(const Vector2i& p0, const Vector2i& p1, const Vector2i& p2)
@@ -490,8 +610,7 @@ namespace Raster
 	{
 		for (int32 x = Math::Min(x0, x1); x < Math::Max(x0, x1); ++x)
 		{
-			m_DrawCallInfo.PixelCoords = { x, y };
-			ProcessPixel();
+			ProcessPixel(x, y);
 		}
 	}
 }

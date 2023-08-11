@@ -63,7 +63,7 @@ namespace Raster
 
 		void Rasterize();
 
-		void ProcessPixel();
+		void ProcessPixel(int32 x, int32 y);
 
 		void FragmentShading();
 		void Blending();

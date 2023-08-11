@@ -116,6 +116,8 @@ namespace Raster
 		Ref<VertexBuffer> m_LineVertexBuffer;
 
 		Vector2 m_ViewportSize = { 1200, 720 };
+		bool m_IsViewportHovered = false;
+
 		Core::LinearColor m_ClearColor = { 0.8f, 0.3f, 0.2f, 1.f };
 
 		Ref<Texture> m_Emoji_128;
