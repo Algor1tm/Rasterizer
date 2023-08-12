@@ -195,13 +195,13 @@ namespace Math
 	public:
 		constexpr const RowType& operator[](uint32_t idx) const
 		{
-			ATN_CORE_ASSERT(idx < Size4, "Matrix subscript out of range");
+			ASSERT(idx < Size4);
 			return m_Array[idx];
 		}
 
 		constexpr RowType& operator[](uint32_t idx)
 		{
-			ATN_CORE_ASSERT(idx < Size4, "Matrix subscript out of range");
+			ASSERT(idx < Size4);
 			return m_Array[idx];
 		}
 
