@@ -27,14 +27,17 @@ namespace Raster
 
 		Core::Application::Get().GetImGuiLayer()->BlockEvents(false);
 		Core::Application::Get().GetWindow().SetVSync(false);
+
+		m_RectTransform.Rotation.z = Math::PI<float>() / 4;
+		m_RectTransform.Scale *= 2;
 	}
 
 	void AppLayer::InitVertexBuffers()
 	{
 		float vertices[] = { -0.3f, -0.3f, 0,   1, 0, 0, 1,   0.f, 0.f,
-					 -0.3f,  0.3f, 0,   0, 1, 0, 1,   0.f, 1.f,
-					  0.3f, -0.3f, 0,   0, 0, 1, 1,   1.f, 0.f,
-					  0.3f,  0.3f, 0,   1, 0, 0, 1,   1.f, 1.f, };
+							 -0.3f,  0.3f, 0,   0, 1, 0, 1,   0.f, 1.f,
+							  0.3f, -0.3f, 0,   0, 0, 1, 1,   1.f, 0.f,
+							  0.3f,  0.3f, 0,   1, 0, 0, 1,   1.f, 1.f, };
 
 		uint32 indices[] = { 2, 1, 3, 0, 1, 2,  };
 
@@ -46,18 +49,15 @@ namespace Raster
 
 		m_QuadVertexBuffer = VertexBuffer::Create(triangleInfo);
 
-		float lineVertices[] = { -0.5f, -0.5f, 0,   1, 0, 0, 1,	 0.f, 0.f,
-								  0.5f,  0.5f, 0,   0, 0, 1, 1,  1.f, 1.f };
+		uint32 rectIndices[] = { 0, 1, 1, 3, 3, 2, 2, 0 };
 
-		uint32 lineIndices[] = { 0, 1 };
+		VertexBufferCreateInfo rectInfo;
+		rectInfo.Data = (Vertex*)vertices;
+		rectInfo.Size = std::size(vertices) / (sizeof(Vertex) / sizeof(float));
+		rectInfo.Primitives = PrimitiveType::LINE_LIST;
+		rectInfo.IndexBuffer = IndexBuffer::Create(rectIndices, std::size(rectIndices));
 
-		VertexBufferCreateInfo lineInfo;
-		lineInfo.Data = (Vertex*)lineVertices;
-		lineInfo.Size = std::size(lineVertices) / (sizeof(Vertex) / sizeof(float));
-		lineInfo.Primitives = PrimitiveType::LINE_LIST;
-		lineInfo.IndexBuffer = IndexBuffer::Create(lineIndices, std::size(lineIndices));
-
-		m_LineVertexBuffer = VertexBuffer::Create(lineInfo);
+		m_LineVertexBuffer = VertexBuffer::Create(rectInfo);
 	}
 
 	void AppLayer::OnAttach()
@@ -114,28 +114,46 @@ namespace Raster
 			m_RasterizerScissors.Height = m_ViewportSize.y;
 		}
 
-		RenderPass geometryPass;
-		geometryPass.ClearColor = m_ClearColor;
-		geometryPass.OutputRenderTarget = m_RenderTarget;
-		geometryPass.Shader = &m_Shader;
-		geometryPass.VertexShader = BIND_VERTEX_SHADER(m_Shader);
-		geometryPass.FragmentShader = BIND_FRAGMENT_SHADER(m_Shader);
-		geometryPass.Viewport = m_RasterizerViewport;
-		geometryPass.Scissors = m_RasterizerScissors;
+		// Quads
+		{
+			RenderPass quadRenderPass;
+			quadRenderPass.ClearColor = m_ClearColor;
+			quadRenderPass.ClearBit = ClearBit::CLEAR_COLOR_BIT;
+			quadRenderPass.OutputRenderTarget = m_RenderTarget;
+			BIND_SHADER(quadRenderPass, m_QuadShader);
+			quadRenderPass.Viewport = m_RasterizerViewport;
+			quadRenderPass.Scissors = m_RasterizerScissors;
 
-		m_Rasterizer->BeginRenderPass(geometryPass);
+			m_Rasterizer->BeginRenderPass(quadRenderPass);
 
-		m_Rasterizer->BindTexture(m_Emoji_128, 0);
-		m_Rasterizer->BindTexture(m_Emoji_32, 1);
-		m_Rasterizer->BindTexture(m_Wallpapers, 2);
+			m_Rasterizer->BindTexture(m_Emoji_128, 0);
+			m_Rasterizer->BindTexture(m_Emoji_32, 1);
+			m_Rasterizer->BindTexture(m_Wallpapers, 2);
 
-		m_Shader.u_MVPMatrix = m_QuadTransform.AsMatrix() * m_Camera.GetViewProjectionMatrix();
-		//m_Rasterizer->DrawElements(m_QuadVertexBuffer);
-		
-		m_Shader.u_MVPMatrix = m_Camera.GetViewProjectionMatrix();
-		m_Rasterizer->DrawElements(m_LineVertexBuffer);
+			m_QuadShader.u_MVPMatrix = m_QuadTransform.AsMatrix() * m_Camera.GetViewProjectionMatrix();
+			m_Rasterizer->DrawElements(m_QuadVertexBuffer);
 
-		m_Rasterizer->EndRenderPass();
+			m_Rasterizer->EndRenderPass();
+		}
+
+		// Lines
+		{
+			RenderPass lineRenderPass;
+			lineRenderPass.ClearColor = m_ClearColor;
+			lineRenderPass.ClearBit = ClearBit::CLEAR_NONE_BIT;
+			lineRenderPass.OutputRenderTarget = m_RenderTarget;
+			BIND_SHADER(lineRenderPass, m_LineShader);
+			lineRenderPass.Viewport = m_RasterizerViewport;
+			lineRenderPass.Scissors = m_RasterizerScissors;
+
+			m_Rasterizer->BeginRenderPass(lineRenderPass);
+
+			m_LineShader.u_MVPMatrix = m_RectTransform.AsMatrix() * m_Camera.GetViewProjectionMatrix();
+			m_Rasterizer->DrawElements(m_LineVertexBuffer);
+
+			m_Rasterizer->EndRenderPass();
+		}
+
 
 		m_SwapChain->SwapBuffers(m_RenderTarget);
 	}
@@ -237,8 +255,20 @@ namespace Raster
 			EndTreeNode();
 		}
 
-		if (BeginTreeNode("LINE"))
+		if (BeginTreeNode("RECT"))
 		{
+			float height = ImGui::GetFrameHeight();
+
+			ImGui::Text("TRANSFORM");
+
+			DrawVec3Controller("Translation", m_RectTransform.Translation, 0.0f, height);
+			Vector3 degrees = Math::Degrees(m_RectTransform.Rotation);
+			DrawVec3Controller("Rotation", degrees, 0.0f, height);
+			m_RectTransform.Rotation = Math::Radians(degrees);
+			DrawVec3Controller("Scale", m_RectTransform.Scale, 1.0f, height);
+
+			Spacing(2);
+
 			ImGui::Text("VERTICES");
 
 			VertexBufferEditor(m_LineVertexBuffer);
@@ -302,11 +332,11 @@ namespace Raster
 
 		if (BeginTreeNode("Shaders"))
 		{
-			ImGui::Text("MY_SHADER:");
-			ImGui::ColorEdit4("Tint", m_Shader.u_Tint.Data());
-			ImGui::DragFloat("Tiling", &m_Shader.u_Tiling, 0.05);
-			ImGui::SliderInt("TextureSlot", &m_Shader.u_TextureSlot, 0, 2);
-			ImGui::Checkbox("Enable Vertices Colors", &m_Shader.u_EnableVerticesColor);
+			ImGui::Text("QUAD_SHADER:");
+			ImGui::ColorEdit4("Tint", m_QuadShader.u_Tint.Data());
+			ImGui::DragFloat("Tiling", &m_QuadShader.u_Tiling, 0.05);
+			ImGui::SliderInt("TextureSlot", &m_QuadShader.u_TextureSlot, 0, 2);
+			ImGui::Checkbox("Enable Vertices Colors", &m_QuadShader.u_EnableVerticesColor);
 
 			EndTreeNode();
 		}

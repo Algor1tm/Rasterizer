@@ -67,6 +67,9 @@ namespace Raster
 
 	void Rasterizer::Clear()
 	{
+		if (m_RenderPass.ClearBit == ClearBit::CLEAR_NONE_BIT)
+			return;
+
 		Pixel zeroPixel = Pixel(0, 0, 0, 0);
 		auto& pixels = m_RenderPass.OutputRenderTarget->ReadAllPixels();
 		std::fill(pixels.begin(), pixels.end(), zeroPixel);
@@ -196,8 +199,32 @@ namespace Raster
 		}
 		else
 		{
-			// TODO: Lines
-			m_DrawCallInfo.ClippedScreenSpacePositions = m_DrawCallInfo.ScreenSpacePositions;
+			Vector2i clipped[2];
+			clipped[0] = m_DrawCallInfo.ScreenSpacePositions[0];
+			clipped[1] = m_DrawCallInfo.ScreenSpacePositions[1];
+
+			bool lineFullClipped = false;
+
+			for (uint8 p = 0; p < 4; ++p)
+			{
+				switch (p)
+				{
+				case 0: lineFullClipped = ClipLineSegmentAgainstLine({ clipStartX, clipStartY }, { 0, 1 }, clipped[0], clipped[1]); break;
+				case 1: lineFullClipped = ClipLineSegmentAgainstLine({ clipStartX, clipEndY }, { 0, -1 }, clipped[0], clipped[1]); break;
+				case 2: lineFullClipped = ClipLineSegmentAgainstLine({ clipStartX, clipStartY }, { 1, 0 }, clipped[0], clipped[1]); break;
+				case 3: lineFullClipped = ClipLineSegmentAgainstLine({ clipEndX,   clipStartY }, { -1, 0 }, clipped[0], clipped[1]); break;
+				}
+
+				if (lineFullClipped)
+					break;
+			}
+
+			if (!lineFullClipped)
+			{
+				m_DrawCallInfo.ClippedScreenSpacePositions.resize(2);
+				m_DrawCallInfo.ClippedScreenSpacePositions[0] = clipped[0];
+				m_DrawCallInfo.ClippedScreenSpacePositions[1] = clipped[1];
+			}
 		}
 	}
 
@@ -261,6 +288,36 @@ namespace Raster
 		}
 
 		return 0;
+	}
+
+	bool Rasterizer::ClipLineSegmentAgainstLine(Vector2i linepoint, Vector2i linenormal, Vector2i& p1, Vector2i& p2)
+	{
+		bool isFirstPointInside = false;
+		bool isSecondPointInside = false;
+
+		float d = -Math::Dot(linenormal, linepoint);
+		float signedDistance;
+
+		signedDistance = linenormal.x * p1.x + linenormal.y * p1.y + d;
+		isFirstPointInside = signedDistance >= 0 ? true : false;
+
+		signedDistance = linenormal.x * p2.x + linenormal.y * p2.y + d;
+		isSecondPointInside = signedDistance >= 0 ? true : false;
+
+		if (!isFirstPointInside && !isSecondPointInside)
+			return true;
+
+		if (!isFirstPointInside)
+		{
+			p1 = LineLineSegmentIntersection(linepoint, linenormal, p1, p2);
+		}
+
+		if (!isSecondPointInside)
+		{
+			p2 = LineLineSegmentIntersection(linepoint, linenormal, p1, p2);
+		}
+
+		return false;
 	}
 
 	void Rasterizer::Rasterize()
@@ -426,152 +483,58 @@ namespace Raster
 		}
 	}
 
-	void Rasterizer::RasterizeLine(const Vector2i& p2, const Vector2i& p1)
+	void Rasterizer::RasterizeLine(const Vector2i& p1, const Vector2i& p2)
 	{
-		// calculate dx & dy
-		int dx = p2.x - p1.x;
-		int dy = p2.y - p1.y;
+#if 1 // DDA
+		int32 dx = p2.x - p1.x;
+		int32 dy = p2.y - p1.y;
 
-		// calculate steps required for generating pixels
-		int steps = abs(dx) > abs(dy) ? abs(dx) : abs(dy);
+		int32 steps = Math::Abs(dx) > Math::Abs(dy) ? Math::Abs(dx) : Math::Abs(dy);
 
-		// calculate increment in x & y for each steps
 		float Xinc = dx / (float)steps;
 		float Yinc = dy / (float)steps;
 
-		// Put pixel for each step
 		float X = p1.x;
 		float Y = p1.y;
-		for (int i = 0; i <= steps; i++) {
+		for (int32 i = 0; i <= steps; i++) 
+		{
 			ProcessPixel(round(X), round(Y));
-			X += Xinc; // increment in x at each step
-			Y += Yinc; // increment in y at each step
+			X += Xinc;
+			Y += Yinc;
 		}
 
-		//int32 x1 = Math::Min(p1.x, p2.x);
-		//int32 y1 = Math::Min(p1.y, p2.y);
-		//int32 x2 = Math::Max(p1.x, p2.x);
-		//int32 y2 = Math::Max(p1.y, p2.y);
-		//
-		//int32 m_new = 2 * (y2 - y1);
-		//int32 slope_error_new = m_new - (x2 - x1);
-		//for (int x = x1, y = y1; x <= x2; x++)
-		//{
-		//	ProcessPixel(x, y);
-		//	// Add slope to increment angle formed
-		//	slope_error_new += m_new;
-		//
-		//	// Slope error reached limit, time to
-		//	// increment y and update slope error.
-		//	if (slope_error_new >= 0) {
-		//		y++;
-		//		slope_error_new -= 2 * (x2 - x1);
-		//	}
-		//}
+#else // Bresenham not working
+		int dx = abs(p1.x - p2.x), dy = abs(p1.y - p2.y);
+		int p = 2 * dy - dx;
+		int twoDy = 2 * dy, twoDyDx = 2 * (dy - dx);
+		int x, y, xEnd;
 
-#if 0
-		//int32 dx = Math::Abs(p2.x - p1.x);
-		//int32 dy = Math::Abs(p2.y - p1.y);
-		//int32 steps, k;
-		//steps = dx;
-		//int32 x, y, p0 = (2 * dy) - dx;
-		//ProcessPixel(p1.x, p1.y);
-		//x = p1.x;
-		//y = p1.y;
-		//for (k = 0; k < steps; k++)
-		//{
-		//	if (p0 < 0)
-		//	{
-		//		p0 = p0 + (2 * dy);
-		//		x += 1;
-		//	}
-		//	else
-		//	{
-		//		p0 = p0 + (2 * dy) - (2 * dx);
-		//		x += 1;
-		//		y += 1;
-		//	}
-		//	ProcessPixel(x, y);
-		//}
-#else
-		//int32 x1 = Math::Floor(p1.x);
-		//int32 y1 = Math::Floor(p1.y);
-		//int32 x2 = Math::Floor(p2.x);
-		//int32 y2 = Math::Floor(p2.y);
-		//int32 deltaX = Math::Abs(x2 - x1);
-		//int32 deltaY = Math::Abs(y2 - y1);
-		//int32 stepX = (x1 < x2) ? 1 : -1;
-		//int32 stepY = (y1 < y2) ? 1 : -1;
-		//float x = x1;
-		//float y = y1;
+		if (p1.x > p2.x) 
+		{
+			x = p2.x;
+			y = p2.y;
+			xEnd = p1.x;
+		}
+		else 
+		{
+			x = p1.x; 
+			y = p1.y; 
+			xEnd = p2.x;
+		}
 
-		//if (deltaX == 0 && deltaY == 0) 
-		//{
-		//	ProcessPixel(x, y);
-		//	return;
-		//}
-
-		//if (deltaX > deltaY) 
-		//{
-		//	int32 error = 2 * deltaY - deltaX;
-		//	for (int32 i = 0; i <= deltaX; i++)
-		//	{
-		//		x += 0.5f;
-		//		y += 0.5f;
-		//		ProcessPixel(x, y);
-
-		//		if (error > 0) 
-		//		{
-		//			error -= deltaX * 2;
-		//			y += stepY;
-		//		}
-
-		//		x += stepX;
-		//		error += deltaY * 2;
-		//	}
-		//}
-		//else 
-		//{
-		//	int32 error = 2 * deltaX - deltaY;
-		//	for (int32 i = 0; i <= deltaY; i++)
-		//	{
-		//		x += 0.5f;
-		//		y += 0.5f;
-		//		ProcessPixel(x, y);
-
-		//		if (error > 0) 
-		//		{
-		//			error -= deltaY * 2;
-		//			x += stepX;
-		//		}
-
-		//		y += stepY;
-		//		error += deltaX * 2;
-		//	}
-		//}
+		ProcessPixel(x, y);
+		while (x < xEnd) {
+			x++;
+			if (p < 0) {
+				p = p + twoDy;
+			}
+			else {
+				y++;
+				p = p + twoDyDx;
+			}
+			ProcessPixel(x, y);
+		}
 #endif
-//		float kx = (p1.y - p0.y) / (float)(p1.x - p0.x);
-//		float ky = 1 / kx;
-//
-//		float x = p0.x;
-//		float y = p0.y;
-//
-//		if (Math::Abs(kx) >= 0 && Math::Abs(kx) <= 1) 
-//		{
-//			for (int32 x = Math::Min(p0.x, p1.x); x < Math::Max(p0.x, p1.x); ++x)
-//			{
-//				y += kx;
-//				ProcessPixel(x, y);
-//			}
-//		}
-//		else 
-//		{
-//			for (int32 y = Math::Min(p0.y, p1.y); y < Math::Max(p0.y, p1.y); ++y)
-//			{
-//				x += ky;
-//				ProcessPixel(x, y);
-//			}
-//		}
 	}
 
 	void Rasterizer::FillBottomFlatTriangle(const Vector2i& p0, const Vector2i& p1, const Vector2i& p2)

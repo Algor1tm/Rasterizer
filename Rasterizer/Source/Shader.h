@@ -27,6 +27,11 @@ namespace Raster
 #define BIND_VERTEX_SHADER(shader) [this](const VertexShaderInput& input) {return shader.VertexShader(input); }
 #define BIND_FRAGMENT_SHADER(shader) [this](const Interpolators& interpolators) {return shader.FragmentShader(interpolators); }
 
+#define BIND_SHADER(renderpass, shader) \
+	renderpass.Shader = &shader; \
+	renderpass.VertexShader = BIND_VERTEX_SHADER(shader); \
+	renderpass.FragmentShader = BIND_FRAGMENT_SHADER(shader)
+
 
 	class Shader
 	{

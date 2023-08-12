@@ -17,7 +17,7 @@
 
 namespace Raster
 {
-	class MyShader: public Shader
+	class QuadShader : public Shader
 	{
 	public:
 		Interpolators VertexShader(const VertexShaderInput& input)
@@ -53,6 +53,32 @@ namespace Raster
 		float u_Tiling = 1.f;
 		int32 u_TextureSlot = 0;
 		bool u_EnableVerticesColor = false;
+	};
+
+	class LineShader : public Shader
+	{
+	public:
+		Interpolators VertexShader(const VertexShaderInput& input)
+		{
+			Interpolators output;
+			output.Color = input.Color;
+			output.TexCoords = input.TexCoords;
+
+			Vertex_Position = Vector4(input.Position, 1) * u_MVPMatrix;
+
+			return output;
+		}
+
+		Vector4 FragmentShader(const Interpolators& input)
+		{
+			Vector4 result = input.Color;
+
+			return result;
+		}
+
+	public:
+		// Vertex Shader Uniforms
+		Matrix4 u_MVPMatrix = Matrix4::Identity();
 	};
 
 	struct Transform
@@ -103,7 +129,9 @@ namespace Raster
 
 		OrthographicCamera m_Camera;
 
-		MyShader m_Shader;
+		QuadShader m_QuadShader;
+		LineShader m_LineShader;
+
 		Ref<RenderTarget> m_RenderTarget;
 		Ref<Rasterizer> m_Rasterizer;
 		Ref<SwapChain> m_SwapChain;
@@ -125,5 +153,6 @@ namespace Raster
 		Ref<Texture> m_Wallpapers;
 
 		Transform m_QuadTransform;
+		Transform m_RectTransform;
 	};
 }

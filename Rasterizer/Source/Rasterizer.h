@@ -28,9 +28,18 @@ namespace Raster
 
 	using Triangle = std::array<Vector2i, 3>;
 
+	enum ClearBit
+	{
+		CLEAR_NONE_BIT = BIT(0),
+		CLEAR_COLOR_BIT = BIT(1),
+		CLEAR_DEPTH_BIT = BIT(2),
+		CLEAR_STENCIL_BIT = BIT(3)
+	};
+
 	struct RenderPass
 	{
 		Core::LinearColor ClearColor;
+		ClearBit ClearBit;
 		Ref<RenderTarget> OutputRenderTarget;
 		Shader* Shader;
 		VertexShader VertexShader;
@@ -74,6 +83,7 @@ namespace Raster
 	private:
 		Vector2i LineLineSegmentIntersection(Vector2i linepoint, Vector2i linenormal, Vector2i p1, Vector2i p2);
 		uint8 ClipTriangleAgainstLine(Vector2i linepoint, Vector2i linenormal, const Triangle& inTri, Triangle& outTri1, Triangle& outTri2);
+		bool ClipLineSegmentAgainstLine(Vector2i linepoint, Vector2i linenormal, Vector2i& p1, Vector2i& p2);
 
 		void RasterizeTriangle(const Vector2i& p0, const Vector2i& p1, const Vector2i& p2);
 		void RasterizeLine(const Vector2i& p0, const Vector2i& p1);
