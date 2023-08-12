@@ -67,7 +67,7 @@ namespace Raster
 
 	void Rasterizer::Clear()
 	{
-		if (m_RenderPass.ClearBit == ClearBit::CLEAR_NONE_BIT)
+		if (m_RenderPass.ClearBit & ClearBit::CLEAR_NONE_BIT)
 			return;
 
 		Pixel zeroPixel = Pixel(0, 0, 0, 0);
@@ -454,8 +454,8 @@ namespace Raster
 
 		const auto& vertInterp = m_DrawCallInfo.VertexInterpolators;
 
-		m_DrawCallInfo.PixelInterpolators.Color = vertInterp[0].Color + vertInterp[1].Color * percent;
-		m_DrawCallInfo.PixelInterpolators.TexCoords = vertInterp[0].TexCoords + vertInterp[1].TexCoords * percent;
+		m_DrawCallInfo.PixelInterpolators.Color = Math::Lerp(vertInterp[0].Color, vertInterp[1].Color, percent);
+		m_DrawCallInfo.PixelInterpolators.TexCoords = Math::Lerp(vertInterp[0].TexCoords, vertInterp[1].TexCoords, percent);
 	}
 
 	void Rasterizer::RasterizeTriangle(const Vector2i& point0, const Vector2i& point1, const Vector2i& point2)
